@@ -28,6 +28,11 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
   categories,
 }) => {
   const [timeframe, setTimeframe] = useState<AnalyticsTimeframe>('monthly');
+  const [isMounted, setIsMounted] = useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Formatters
   const formatVND = (val: number) => {
@@ -190,6 +195,14 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
 
     return hourly;
   }, [filteredTxs, timeframe]);
+
+  if (!isMounted) {
+    return (
+      <div className="p-8 text-center text-slate-500 font-medium">
+        Đang tải báo cáo...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
