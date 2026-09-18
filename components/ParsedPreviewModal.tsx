@@ -35,10 +35,18 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
         matchedCat = typeCats[0];
       }
 
+      // Format local YYYY-MM-DD
+      const now = new Date();
+      const localTodayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const targetDate = parsedData.transaction_date && parsedData.transaction_date.length >= 10
+        ? parsedData.transaction_date.substring(0, 10)
+        : localTodayYmd;
+
       setFormData({
         ...parsedData,
         category_id: matchedCat ? matchedCat.id : parsedData.category_id,
         category_name: matchedCat ? matchedCat.name : parsedData.category_name,
+        transaction_date: targetDate,
       });
     }
   }, [parsedData, categories]);

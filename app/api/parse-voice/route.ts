@@ -13,6 +13,18 @@ const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
   'Thu nhập': ['thu nhập', 'thu nhap', 'lương', 'luong', 'thưởng', 'thuong', 'lì xì', 'đầu tư', 'chứng khoán', 'bất động sản', 'lãi', 'tiền lương', 'nhận tiền', 'thu'],
 };
 
+function formatYMD(dateInput?: Date | string | null): string {
+  const d = dateInput ? new Date(dateInput) : new Date();
+  if (isNaN(d.getTime())) {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { text, currentDate, categories } = await req.json();
@@ -24,6 +36,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const todayDateStr = formatYMD(currentDate);
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     let rawResult: any = null;
 
@@ -43,7 +56,7 @@ export async function POST(req: NextRequest) {
 Bạn là một trợ lý tài chính thông minh tiếng Việt. Hãy phân tích câu thoại thu nhập/chi tiêu sau đây của người dùng:
 "${text}"
 
-Bối cảnh thời gian hiện tại của hệ thống: ${currentDate || new Date().toISOString()}
+Bối cảnh ngày hiện tại của hệ thống: ${todayDateStr}
 
 NHIỆM VỤ CỦA BẠN:
 1. Xác định số tiền (amount): Trích xuất con số tiền tệ chính xác theo đơn vị VND.
@@ -75,7 +88,7 @@ NHIỆM VỤ CỦA BẠN:
      1. "Thu nhập"
 
 4. Trích xuất description: Tóm tắt nội dung giao dịch ngắn gọn (vd: "Đi ăn cơm tấm", "Trả tiền điện", "Nhận lương tháng 9").
-5. Giải mã transaction_date: Chuyển đổi các cụm từ thời gian tương đối như "hôm qua", "thứ 2 tuần trước", "hôm kia", "sáng nay", "tối qua" thành chuỗi ngày định dạng YYYY-MM-DD dựa vào thời gian hiện tại. Nếu không đề cập thời gian, sử dụng ngày hiện tại.
+5. Giải mã transaction_date: Chuyển đổi các cụm từ thời gian tương đối như "hôm qua", "thứ 2 tuần trước", "hôm kia", "sáng nay", "tối qua" thành chuỗi ngày định dạng YYYY-MM-DD dựa vào ngày hiện tại (${todayDateStr}). Nếu không đề cập thời gian rõ ràng trong quá khứ, sử dụng chính xác ngày hiện tại ${todayDateStr}.
 
 Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
 {
@@ -99,11 +112,11 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
 
     // Fallback rule-based parser if Gemini Key is missing or API failed
     if (!rawResult) {
-      rawResult = mockVietnameseParser(text, currentDate);
+      rawResult = mockVietnameseParser(text, todayDateStr);
     }
 
     // Normalize category mapping against Frontend category list
-    const finalParsedData = normalizeCategoryResult(rawResult, text, categories);
+    const finalParsedData = normalizeCategoryResult(rawResult, text, categories, todayDateStr);
     return NextResponse.json(finalParsedData);
 
   } catch (error: any) {
@@ -116,7 +129,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
 }
 
 // Normalize and map category name & id to exact 8 standard categories
-function normalizeCategoryResult(raw: any, rawText: string, categories: any[]) {
+function normalizeCategoryResult(raw: any, rawText: string, categories: any[], todayDateStr: string) {
   const type = raw?.type === 'income' ? 'income' : 'expense';
   const textLower = rawText.toLowerCase();
   const catInputLower = (raw?.category_name || raw?.category_id || '').toLowerCase();
@@ -181,12 +194,12 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[]) {
     category_id: matchedCat.id,
     category_name: matchedCat.name,
     description: raw?.description || rawText,
-    transaction_date: raw?.transaction_date || new Date().toISOString().split('T')[0],
+    transaction_date: raw?.transaction_date || todayDateStr,
   };
 }
 
 // Improved rule-based parser when Gemini API Key is missing or fails
-function mockVietnameseParser(text: string, currentDate: string) {
+function mockVietnameseParser(text: string, todayDateStr: string) {
   const lower = text.toLowerCase();
 
   // Extract amount
@@ -215,13 +228,13 @@ function mockVietnameseParser(text: string, currentDate: string) {
   const type = isIncome ? 'income' : 'expense';
 
   // Relative Date
-  let dateObj = currentDate ? new Date(currentDate) : new Date();
+  let dateObj = todayDateStr ? new Date(todayDateStr) : new Date();
   if (lower.includes('hôm qua') || lower.includes('hom qua')) {
     dateObj.setDate(dateObj.getDate() - 1);
   } else if (lower.includes('hôm kia') || lower.includes('hom kia')) {
     dateObj.setDate(dateObj.getDate() - 2);
   }
-  const transaction_date = dateObj.toISOString().split('T')[0];
+  const transaction_date = formatYMD(dateObj);
 
   // Description cleanup
   const cleanDesc = text

@@ -23,25 +23,52 @@ export default function Home() {
   const [parsedResult, setParsedResult] = useState<ParsedVoiceResult | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  // Helper to format local YYYY-MM-DD
+  const getTodayLocalDate = (): string => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Load initial data from Supabase or LocalStorage
   useEffect(() => {
     async function loadData() {
       if (isSupabaseConfigured && supabase) {
         try {
-          const { data: catData } = await supabase.from('categories').select('*');
-          if (catData && catData.length > 0) {
+          // 1. Fetch categories
+          const { data: catData, error: catErr } = await supabase.from('categories').select('*');
+          if (catErr) {
+            console.error('Supabase categories error:', catErr);
+          } else if (catData && catData.length > 0) {
             setCategories(catData);
+          } else {
+            // Seed default categories into Supabase if empty
+            const { data: seededCats } = await supabase.from('categories').upsert(DEFAULT_CATEGORIES).select();
+            if (seededCats && seededCats.length > 0) {
+              setCategories(seededCats);
+            }
           }
 
-          const { data: txData } = await supabase
+          // 2. Fetch transactions from Supabase
+          const { data: txData, error: txErr } = await supabase
             .from('transactions')
             .select('*')
             .order('transaction_date', { ascending: false });
-          if (txData && txData.length > 0) {
+
+          if (txErr) {
+            console.error('Supabase transactions fetch error:', txErr);
+            const localTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
+            if (localTxs) setTransactions(JSON.parse(localTxs));
+          } else if (txData) {
             setTransactions(txData);
+            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(txData));
           }
         } catch (err) {
           console.error('Supabase load error:', err);
+          const localTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
+          if (localTxs) setTransactions(JSON.parse(localTxs));
         }
       } else {
         const localCats = localStorage.getItem('moneysmartflow_categories') || localStorage.getItem('moneyflow_categories');
@@ -53,29 +80,26 @@ export default function Home() {
     loadData();
   }, []);
 
-  // LocalStorage Fallback persistence
+  // Sync to LocalStorage Backup on any change
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('moneysmartflow_categories', JSON.stringify(categories));
-    }
+    localStorage.setItem('moneysmartflow_categories', JSON.stringify(categories));
   }, [categories]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('moneysmartflow_transactions', JSON.stringify(transactions));
-    }
+    localStorage.setItem('moneysmartflow_transactions', JSON.stringify(transactions));
   }, [transactions]);
 
-  // Voice transcript handler -> calls Gemini API route
+  // Voice & Text transcript handler -> calls Gemini API route
   const handleTranscriptComplete = async (text: string) => {
     setIsProcessingVoice(true);
     try {
+      const todayLocalDateStr = getTodayLocalDate();
       const response = await fetch('/api/parse-voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          currentDate: new Date().toISOString(),
+          currentDate: todayLocalDateStr,
           categories,
         }),
       });
@@ -95,37 +119,48 @@ export default function Home() {
     }
   };
 
-  // Confirm & Save transaction
+  // Confirm & Save transaction directly into Supabase transactions table
   const handleConfirmTransaction = async (finalData: ParsedVoiceResult) => {
-    const newTx: Transaction = {
-      id: `tx-${Date.now()}`,
+    let txDateIso: string;
+    if (finalData.transaction_date && finalData.transaction_date.length === 10) {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      txDateIso = new Date(`${finalData.transaction_date}T${timeStr}`).toISOString();
+    } else {
+      txDateIso = new Date(finalData.transaction_date || Date.now()).toISOString();
+    }
+
+    const newTxPayload = {
       category_id: finalData.category_id,
       amount: finalData.amount,
       type: finalData.type,
       description: finalData.description,
       raw_text: finalData.description,
-      transaction_date: new Date(finalData.transaction_date).toISOString(),
+      transaction_date: txDateIso,
     };
 
     if (isSupabaseConfigured && supabase) {
-      const { data } = await supabase.from('transactions').insert([
-        {
-          category_id: newTx.category_id,
-          amount: newTx.amount,
-          type: newTx.type,
-          description: newTx.description,
-          raw_text: newTx.raw_text,
-          transaction_date: newTx.transaction_date,
-        },
-      ]).select();
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert([newTxPayload])
+          .select();
 
-      if (data && data[0]) {
-        setTransactions((prev) => [data[0], ...prev]);
-      } else {
-        setTransactions((prev) => [newTx, ...prev]);
+        if (error) {
+          console.error('Supabase insert transaction error:', error);
+          const fallbackTx: Transaction = { id: `tx-${Date.now()}`, ...newTxPayload };
+          setTransactions((prev) => [fallbackTx, ...prev]);
+        } else if (data && data[0]) {
+          setTransactions((prev) => [data[0], ...prev]);
+        }
+      } catch (err) {
+        console.error('Supabase insert exception:', err);
+        const fallbackTx: Transaction = { id: `tx-${Date.now()}`, ...newTxPayload };
+        setTransactions((prev) => [fallbackTx, ...prev]);
       }
     } else {
-      setTransactions((prev) => [newTx, ...prev]);
+      const fallbackTx: Transaction = { id: `tx-${Date.now()}`, ...newTxPayload };
+      setTransactions((prev) => [fallbackTx, ...prev]);
     }
 
     setIsPreviewOpen(false);
