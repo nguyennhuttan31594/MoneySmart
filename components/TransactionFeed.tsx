@@ -2,13 +2,77 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '@/lib/types';
-import { Search, Trash2, Calendar, Mic, ArrowDownCircle, ArrowUpCircle, Tag } from 'lucide-react';
+import {
+  Search,
+  Trash2,
+  Calendar,
+  Tag,
+  Utensils,
+  Car,
+  Zap,
+  ShoppingBag,
+  Stethoscope,
+  Baby,
+  CreditCard,
+  Wallet,
+  TrendingUp,
+  Home,
+  GraduationCap,
+  Plane,
+} from 'lucide-react';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
   categories: Category[];
   onDeleteTransaction: (id: string) => void;
 }
+
+const renderCategoryIcon = (categoryName?: string, iconName?: string, isExpense: boolean = true) => {
+  const lowerName = (categoryName || '').toLowerCase();
+  const lowerIcon = (iconName || '').toLowerCase();
+
+  if (lowerName.includes('ăn uống') || lowerName.includes('cà phê') || lowerName.includes('ăn') || lowerIcon === 'utensils') {
+    return <Utensils className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('di chuyển') || lowerName.includes('xăng') || lowerName.includes('xe') || lowerIcon === 'car') {
+    return <Car className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('hóa đơn') || lowerName.includes('điện nước') || lowerIcon === 'zap') {
+    return <Zap className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('mua sắm') || lowerName.includes('giải trí') || lowerIcon === 'shoppingbag') {
+    return <ShoppingBag className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (
+    lowerName.includes('sức khỏe') ||
+    lowerName.includes('y tế') ||
+    lowerName.includes('bệnh') ||
+    lowerIcon === 'stethoscope' ||
+    lowerIcon === 'heartpulse'
+  ) {
+    return <Stethoscope className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('con cái') || lowerName.includes('trẻ em') || lowerIcon === 'baby') {
+    return <Baby className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('trả nợ') || lowerName.includes('vay') || lowerIcon === 'creditcard') {
+    return <CreditCard className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('học tập') || lowerName.includes('sách') || lowerIcon === 'graduationcap') {
+    return <GraduationCap className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('nhà ở') || lowerName.includes('tiền phòng') || lowerIcon === 'home') {
+    return <Home className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('du lịch') || lowerIcon === 'plane') {
+    return <Plane className="w-5 h-5" strokeWidth={2} />;
+  }
+  if (lowerName.includes('thu nhập') || lowerName.includes('lương') || !isExpense || lowerIcon === 'wallet') {
+    return <Wallet className="w-5 h-5" strokeWidth={2} />;
+  }
+
+  return isExpense ? <Tag className="w-5 h-5" strokeWidth={2} /> : <TrendingUp className="w-5 h-5" strokeWidth={2} />;
+};
 
 export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   transactions,
@@ -184,42 +248,28 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
                       className="flex items-center justify-between bg-white hover:bg-[#F2F2F7]/50 px-4 py-3.5 transition group"
                     >
                       <div className="flex items-center gap-3.5">
+                        {/* Category Symbol Icon Container */}
                         <div
-                          className={`p-2.5 rounded-2xl ${
-                            isExpense ? 'bg-[#FF3B30]/10 text-[#FF3B30]' : 'bg-[#34C759]/10 text-[#34C759]'
-                          }`}
+                          className="p-2.5 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105"
+                          style={{
+                            backgroundColor: `${cat?.color || (isExpense ? '#FF3B30' : '#34C759')}15`,
+                            color: cat?.color || (isExpense ? '#FF3B30' : '#34C759'),
+                          }}
                         >
-                          {isExpense ? (
-                            <ArrowDownCircle className="w-5 h-5" strokeWidth={2} />
-                          ) : (
-                            <ArrowUpCircle className="w-5 h-5" strokeWidth={2} />
-                          )}
+                          {renderCategoryIcon(cat?.name, cat?.icon, isExpense)}
                         </div>
 
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-black text-sm">{tx.description}</h4>
-                            {cat && (
-                              <span
-                                className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-                                style={{
-                                  color: cat.color,
-                                  borderColor: `${cat.color}30`,
-                                  backgroundColor: `${cat.color}10`,
-                                }}
-                              >
-                                {cat.name}
-                              </span>
-                            )}
-                          </div>
+                          {/* Top Line: Category Name (Hạng mục) */}
+                          <h4 className="font-semibold text-black text-sm tracking-tight">
+                            {cat ? cat.name : (isExpense ? 'Chi tiêu' : 'Thu nhập')}
+                          </h4>
 
+                          {/* Bottom Line: Time + Transaction Description/Note (Ẩn hoàn toàn câu thoại giọng nói gốc) */}
                           <div className="flex items-center gap-2 text-xs text-[#8E8E93] font-medium mt-0.5">
                             <span>{formatTimeOnly(tx.transaction_date)}</span>
-                            {tx.raw_text && (
-                              <span className="flex items-center gap-1 text-[#8E8E93] bg-[#F2F2F7] px-2 py-0.5 rounded-full text-[11px]">
-                                <Mic className="w-3 h-3 text-[#007AFF]" strokeWidth={2} /> "{tx.raw_text}"
-                              </span>
-                            )}
+                            <span>•</span>
+                            <span className="text-slate-700 font-normal">{tx.description}</span>
                           </div>
                         </div>
                       </div>
@@ -250,7 +300,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
         ) : (
           <div className="text-center py-16 bg-[#F2F2F7] rounded-[20px] border border-dashed border-black/[0.06]">
             <p className="text-sm font-semibold text-[#8E8E93]">Chưa có giao dịch phù hợp</p>
-            <p className="text-xs text-[#8E8E93] mt-1">Nói vào micro ở góc dưới màn hình để ghi chép AI!</p>
+            <p className="text-xs text-[#8E8E93] mt-1">Nói hoặc gõ vào ô ở góc dưới màn hình để ghi chép!</p>
           </div>
         )}
       </div>
