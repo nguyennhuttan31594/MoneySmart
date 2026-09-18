@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Mapping dictionary for category keyword matching
+// Keyword mapping dictionary for 8 standard categories
 const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
   'Ăn uống': ['ăn uống', 'an uong', 'ăn', 'uống', 'phở', 'cơm', 'bún', 'bánh', 'trà sữa', 'cà phê', 'cafe', 'ăn sáng', 'ăn trưa', 'ăn tối', 'nhà hàng', 'quán ăn', 'đi chợ', 'siêu thị', 'thức ăn', 'nước uống', 'nhậu', 'bia'],
-  'Xăng xe & Di chuyển': ['xăng', 'xăng xe', 'di chuyển', 'xe cộ', 'grab', 'gojek', 'be', 'gửi xe', 'sửa xe', 'vé xe', 'vé máy bay', 'taxi', 'đi lại', 'ô tô', 'xe máy', 'bãi xe'],
-  'Tiền điện nước & Hóa đơn': ['tiền điện', 'tiền nước', 'hóa đơn', 'điện', 'nước', 'internet', 'wifi', 'điện thoại', 'nạp tiền', 'nạp thẻ', 'truyền hình', 'phí chung cư', 'rác'],
-  'Nhà ở / Tiền phòng': ['nhà ở', 'tiền phòng', 'tiền nhà', 'thuê nhà', 'tiền trọ', 'phòng trọ', 'khách sạn', 'homestay', 'sửa nhà', 'nội thất'],
-  'Học tập': ['học tập', 'học phí', 'tiền học', 'sách', 'vở', 'dụng cụ học tập', 'khóa học', 'gia sư', 'trường học'],
-  'Sức khỏe & Y tế': ['sức khỏe', 'y tế', 'thuốc', 'tiền thuốc', 'nhà thuốc', 'khám bệnh', 'bệnh viện', 'nha khoa', 'bảo hiểm y tế', 'bác sĩ', 'thuốc tây'],
-  'Mua sắm': ['mua sắm', 'quần áo', 'giày dép', 'đồ dùng', 'mỹ phẩm', 'tiki', 'shopee', 'lazada', 'tiktok shop', 'phụ kiện', 'túi xách', 'đồng hồ', 'sắm'],
-  'Giải trí & Du lịch': ['giải trí', 'du lịch', 'xem phim', 'chơi game', 'game', 'vé xem phim', 'nạp game', 'ca nhạc', 'karaoke', 'nghỉ dưỡng', 'dã ngoại'],
-  'Vay nợ / Trả nợ': ['vay nợ', 'trả nợ', 'mượn tiền', 'trả góp', 'ngân hàng', 'cho vay', 'đòi nợ', 'tín dụng', 'lãi suất'],
-  'Lương': ['lương', 'tiền lương', 'nhận lương', 'chuyển lương'],
-  'Thưởng': ['thưởng', 'tiền thưởng', 'lì xì', 'hoa hồng', 'thưởng tết'],
-  'Đầu tư': ['đầu tư', 'chứng khoán', 'bất động sản', 'lãi', 'tiền lãi', 'tiết kiệm', 'coin', 'crypto'],
+  'Di chuyển': ['di chuyển', 'di chuyen', 'xăng', 'xăng xe', 'xe cộ', 'grab', 'gojek', 'be', 'gửi xe', 'sửa xe', 'vé xe', 'vé máy bay', 'taxi', 'đi lại', 'ô tô', 'xe máy', 'bãi xe', 'xe'],
+  'Hóa đơn & Điện nước': ['hóa đơn', 'hoa don', 'tiền điện', 'tiền nước', 'điện', 'nước', 'internet', 'wifi', 'điện thoại', 'nạp tiền', 'nạp thẻ', 'truyền hình', 'phí chung cư', 'rác', 'tiền phòng', 'tiền nhà', 'thuê nhà', 'nhà ở'],
+  'Mua sắm/Giải trí': ['mua sắm', 'mua sam', 'giải trí', 'giai tri', 'du lịch', 'quần áo', 'giày dép', 'đồ dùng', 'mỹ phẩm', 'tiki', 'shopee', 'lazada', 'tiktok shop', 'phụ kiện', 'túi xách', 'đồng hồ', 'xem phim', 'chơi game', 'game', 'vé xem phim', 'karaoke'],
+  'Sức khỏe': ['sức khỏe', 'suc khoe', 'y tế', 'y te', 'thuốc', 'tiền thuốc', 'nhà thuốc', 'khám bệnh', 'bệnh viện', 'nha khoa', 'bảo hiểm y tế', 'bác sĩ', 'thuốc tây'],
+  'Con cái': ['con cái', 'con cai', 'tiền học', 'học phí', 'học tập', 'bỉm', 'sữa', 'đồ chơi', 'trường học', 'gia sư', 'tiền con', 'sách'],
+  'Trả nợ': ['trả nợ', 'tra no', 'vay nợ', 'vay no', 'mượn tiền', 'trả góp', 'ngân hàng', 'cho vay', 'đòi nợ', 'tín dụng', 'lãi suất'],
+  'Thu nhập': ['thu nhập', 'thu nhap', 'lương', 'luong', 'thưởng', 'thuong', 'lì xì', 'đầu tư', 'chứng khoán', 'bất động sản', 'lãi', 'tiền lương', 'nhận tiền', 'thu'],
 };
 
 export async function POST(req: NextRequest) {
@@ -66,23 +62,17 @@ NHIỆM VỤ CỦA BẠN:
 
 2. Phân loại type: 'expense' (chi tiêu/trả tiền/mua) hoặc 'income' (lương/thưởng/nhận tiền/được cho).
 
-3. BẮT BUỘC ÉP DANH MỤC (category_name) THUỘC ĐÚNG 1 TRONG CÁC CHUỖI TÊN CỐ ĐỊNH SAU (ENUM):
-   - Nếu type là 'expense' (Chi tiêu), CHỈ ĐƯỢC CHỌN 1 TRONG CÁC TÊN SAU:
+3. BẮT BUỘC ÉP DANH MỤC (category_name) THUỘC ĐÚNG 1 TRONG 8 CHUỖI TÊN CỐ ĐỊNH SAU (ENUM):
+   - Nếu type là 'expense' (Chi tiêu), CHỈ ĐƯỢC CHỌN 1 TRONG 7 TÊN SAU:
      1. "Ăn uống"
-     2. "Xăng xe & Di chuyển"
-     3. "Tiền điện nước & Hóa đơn"
-     4. "Nhà ở / Tiền phòng"
-     5. "Học tập"
-     6. "Sức khỏe & Y tế"
-     7. "Mua sắm"
-     8. "Giải trí & Du lịch"
-     9. "Vay nợ / Trả nợ"
-     10. "Khác"
-   - Nếu type là 'income' (Thu nhập), CHỈ ĐƯỢC CHỌN 1 TRONG CÁC TÊN SAU:
-     1. "Lương"
-     2. "Thưởng"
-     3. "Đầu tư"
-     4. "Khác (Thu nhập)"
+     2. "Di chuyển"
+     3. "Hóa đơn & Điện nước"
+     4. "Mua sắm/Giải trí"
+     5. "Sức khỏe"
+     6. "Con cái"
+     7. "Trả nợ"
+   - Nếu type là 'income' (Thu nhập), CHỈ ĐƯỢC CHỌN CHÍNH XÁC TÊN SAU:
+     1. "Thu nhập"
 
 4. Trích xuất description: Tóm tắt nội dung giao dịch ngắn gọn (vd: "Đi ăn cơm tấm", "Trả tiền điện", "Nhận lương tháng 9").
 5. Giải mã transaction_date: Chuyển đổi các cụm từ thời gian tương đối như "hôm qua", "thứ 2 tuần trước", "hôm kia", "sáng nay", "tối qua" thành chuỗi ngày định dạng YYYY-MM-DD dựa vào thời gian hiện tại. Nếu không đề cập thời gian, sử dụng ngày hiện tại.
@@ -125,7 +115,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
   }
 }
 
-// Normalize and map category name & id to exact frontend category objects
+// Normalize and map category name & id to exact 8 standard categories
 function normalizeCategoryResult(raw: any, rawText: string, categories: any[]) {
   const type = raw?.type === 'income' ? 'income' : 'expense';
   const textLower = rawText.toLowerCase();
@@ -174,8 +164,8 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[]) {
   // 4. Default fallback category if no match
   if (!matchedCat) {
     matchedCat = availableCats.find((c: any) => c.type === type) || {
-      id: type === 'income' ? 'cat-c-salary' : 'cat-c-food',
-      name: type === 'income' ? 'Lương' : 'Ăn uống',
+      id: type === 'income' ? 'cat-c-income' : 'cat-c-food',
+      name: type === 'income' ? 'Thu nhập' : 'Ăn uống',
     };
   }
 
