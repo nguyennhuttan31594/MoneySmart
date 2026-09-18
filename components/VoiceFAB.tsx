@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Loader2, Sparkles, Send } from 'lucide-react';
+import { Mic, MicOff, Loader2, Send } from 'lucide-react';
 
 interface VoiceFABProps {
   onTranscriptComplete: (transcript: string) => void;
@@ -31,7 +31,6 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
         recognition.onstart = () => {
           setIsListening(true);
           setErrorMsg(null);
-          setTranscript('');
         };
 
         recognition.onresult = (event: any) => {
@@ -65,16 +64,13 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
-      if (transcript.trim()) {
-        onTranscriptComplete(transcript);
-      }
     } else {
       if (!recognitionRef.current) {
         setErrorMsg('Trình duyệt chưa hỗ trợ Web Speech API.');
         return;
       }
       try {
-        setTranscript('');
+        setErrorMsg(null);
         recognitionRef.current.start();
       } catch (err) {
         console.error(err);
@@ -82,93 +78,99 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
     }
   };
 
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (transcript.trim()) {
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (transcript.trim() && !isProcessing) {
       if (isListening) {
         recognitionRef.current?.stop();
+        setIsListening(false);
       }
-      onTranscriptComplete(transcript);
+      onTranscriptComplete(transcript.trim());
+      setTranscript('');
+      setErrorMsg(null);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
     }
   };
 
   return (
-    <div className="relative">
-      {/* Real-time iOS Floating Popup Toast */}
-      {(isListening || transcript || errorMsg || isProcessing) && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md bg-white/95 backdrop-blur-2xl border border-black/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.12)] rounded-[24px] p-4 text-slate-900 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {errorMsg ? (
-            <p className="text-xs text-rose-500 font-medium text-center">{errorMsg}</p>
-          ) : isProcessing ? (
-            <div className="flex items-center justify-center gap-3 text-[#007AFF]">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-xs font-semibold tracking-wide">Moneyflow AI đang giải mã...</span>
-            </div>
-          ) : (
-            <form onSubmit={handleManualSubmit} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-[#007AFF]" />
-                  {isListening ? 'Đang lắng nghe tiếng Việt...' : 'Văn bản thu âm'}
-                </span>
-                {isListening && (
-                  <span className="flex h-2.5 w-2.5 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF3B30] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF3B30]"></span>
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={transcript}
-                  onChange={(e) => setTranscript(e.target.value)}
-                  placeholder="Nói hoặc gõ: 'Đi ăn cơm tấm 25k'..."
-                  className="flex-1 bg-[#F2F2F7] border border-black/[0.05] rounded-xl px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={!transcript.trim() || isProcessing}
-                  className="bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-40 text-white p-2.5 rounded-xl transition shadow-md shadow-[#007AFF]/20 flex items-center justify-center"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          )}
+    <div className="w-full">
+      {errorMsg && (
+        <div className="mb-2 text-xs text-rose-500 font-medium text-center bg-rose-50 border border-rose-200 rounded-xl py-1.5 px-3">
+          {errorMsg}
         </div>
       )}
 
-      {/* Main iOS Floating Action Button */}
-      <button
-        onClick={toggleListen}
-        disabled={isProcessing}
-        className={`relative -top-5 p-4 rounded-full shadow-lg shadow-[#007AFF]/30 transition-all duration-300 transform active:scale-95 flex items-center justify-center border-4 border-white ${
-          isListening
-            ? 'bg-[#FF3B30] text-white ring-4 ring-[#FF3B30]/30 shadow-red-500/40'
-            : 'bg-[#007AFF] hover:bg-[#0062CC] text-white hover:scale-105'
-        }`}
-        title="Bấm để nói thu nhập / chi tiêu"
+      {/* Parallel Text Input + Voice Mic + Submit Button */}
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-center gap-2 bg-white/95 backdrop-blur-2xl border border-black/[0.08] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full p-1.5 transition-all focus-within:ring-2 focus-within:ring-[#007AFF]/40"
       >
-        {isListening && (
-          <>
-            <span className="absolute inset-0 rounded-full bg-[#FF3B30] opacity-75 animate-ping"></span>
-            <span className="absolute -inset-2 rounded-full border-2 border-[#FF3B30]/40 animate-pulse"></span>
-          </>
-        )}
+        {/* Text Input */}
+        <div className="relative flex-1 flex items-center pl-3">
+          <input
+            type="text"
+            value={transcript}
+            onChange={(e) => {
+              setTranscript(e.target.value);
+              if (errorMsg) setErrorMsg(null);
+            }}
+            onKeyDown={handleKeyDown}
+            disabled={isProcessing}
+            placeholder={
+              isListening
+                ? 'Đang lắng nghe giọng nói...'
+                : "Gõ hoặc nói: 'Cơm tấm 35k', 'Lương 15tr'..."
+            }
+            className="w-full bg-transparent text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none py-1.5 pr-2"
+          />
 
-        <div className="relative z-10 flex items-center justify-center">
-          {isProcessing ? (
-            <Loader2 className="w-6 h-6 animate-spin text-white" />
-          ) : isListening ? (
-            <MicOff className="w-6 h-6 text-white" />
-          ) : (
-            <Mic className="w-6 h-6 text-white" strokeWidth={2.2} />
+          {isListening && (
+            <span className="flex h-2.5 w-2.5 relative mr-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF3B30] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF3B30]"></span>
+            </span>
           )}
         </div>
-      </button>
+
+        {/* Micro Button (song song với ô nhập liệu) */}
+        <button
+          type="button"
+          onClick={toggleListen}
+          disabled={isProcessing}
+          className={`p-2.5 rounded-full transition-all duration-200 shrink-0 flex items-center justify-center ${
+            isListening
+              ? 'bg-[#FF3B30] text-white ring-2 ring-[#FF3B30]/40 animate-pulse'
+              : 'bg-[#F2F2F7] hover:bg-slate-200 text-[#007AFF] active:scale-95'
+          }`}
+          title={isListening ? 'Dừng thu âm' : 'Nói bằng giọng nói'}
+        >
+          {isListening ? (
+            <MicOff className="w-5 h-5" />
+          ) : (
+            <Mic className="w-5 h-5" strokeWidth={2.2} />
+          )}
+        </button>
+
+        {/* Submit / Send Button */}
+        <button
+          type="submit"
+          disabled={!transcript.trim() || isProcessing}
+          className="bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-30 disabled:hover:bg-[#007AFF] text-white p-2.5 rounded-full transition shadow-md shadow-[#007AFF]/20 shrink-0 flex items-center justify-center active:scale-95"
+          title="Gửi dữ liệu (Enter)"
+        >
+          {isProcessing ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Send className="w-5 h-5" />
+          )}
+        </button>
+      </form>
     </div>
   );
 };

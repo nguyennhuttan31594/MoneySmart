@@ -194,7 +194,7 @@ export default function Home() {
       </header>
 
       {/* Main Content Body */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-36">
         {activeTab === 'transactions' && (
           <TransactionFeed
             transactions={transactions}
@@ -226,49 +226,50 @@ export default function Home() {
         onClose={() => setIsPreviewOpen(false)}
       />
 
-      {/* Fixed Bottom iOS Tab Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 ios-glass-bar border-t border-black/[0.06] px-6 py-2">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          {/* 1. Tab Nhật ký */}
-          <button
-            onClick={() => setActiveTab('transactions')}
-            className={`flex flex-col items-center gap-1 transition ${
-              activeTab === 'transactions' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
-            }`}
-          >
-            <ListFilter className="w-6 h-6" strokeWidth={2} />
-            <span className="text-[10px] font-bold">Nhật ký</span>
-          </button>
-
-          {/* Center Voice FAB */}
+      {/* Fixed Bottom Container: Input Dock + Tab Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-3 pt-2 bg-gradient-to-t from-slate-100 via-slate-100/90 to-transparent pointer-events-none">
+        <div className="max-w-lg mx-auto space-y-2 pointer-events-auto">
+          {/* Always-visible Text & Voice Input Bar */}
           <VoiceFAB
             onTranscriptComplete={handleTranscriptComplete}
             isProcessing={isProcessingVoice}
           />
 
-          {/* 2. Tab Báo cáo */}
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`flex flex-col items-center gap-1 transition ${
-              activeTab === 'reports' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
-            }`}
-          >
-            <PieChart className="w-6 h-6" strokeWidth={2} />
-            <span className="text-[10px] font-bold">Báo cáo</span>
-          </button>
+          {/* Bottom iOS Navigation Tabs */}
+          <nav className="ios-glass-bar border border-black/[0.06] rounded-2xl px-8 py-2 shadow-lg flex items-center justify-around">
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`flex flex-col items-center gap-0.5 transition ${
+                activeTab === 'transactions' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
+              }`}
+            >
+              <ListFilter className="w-5 h-5" strokeWidth={2} />
+              <span className="text-[10px] font-bold">Nhật ký</span>
+            </button>
 
-          {/* 3. Tab Danh mục */}
-          <button
-            onClick={() => setActiveTab('categories')}
-            className={`flex flex-col items-center gap-1 transition ${
-              activeTab === 'categories' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
-            }`}
-          >
-            <Layers className="w-6 h-6" strokeWidth={2} />
-            <span className="text-[10px] font-bold">Danh mục</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`flex flex-col items-center gap-0.5 transition ${
+                activeTab === 'reports' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
+              }`}
+            >
+              <PieChart className="w-5 h-5" strokeWidth={2} />
+              <span className="text-[10px] font-bold">Báo cáo</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('categories')}
+              className={`flex flex-col items-center gap-0.5 transition ${
+                activeTab === 'categories' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
+              }`}
+            >
+              <Layers className="w-5 h-5" strokeWidth={2} />
+              <span className="text-[10px] font-bold">Danh mục</span>
+            </button>
+          </nav>
         </div>
-      </nav>
+      </div>
     </main>
   );
 }
+
