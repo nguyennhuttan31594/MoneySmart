@@ -23,9 +23,25 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
 
   useEffect(() => {
     if (parsedData) {
-      setFormData({ ...parsedData });
+      const typeCats = categories.filter(
+        (c) => c.type === parsedData.type && c.parent_id !== null
+      );
+      let matchedCat = typeCats.find(
+        (c) =>
+          c.id === parsedData.category_id ||
+          c.name.toLowerCase() === (parsedData.category_name || '').toLowerCase()
+      );
+      if (!matchedCat && typeCats.length > 0) {
+        matchedCat = typeCats[0];
+      }
+
+      setFormData({
+        ...parsedData,
+        category_id: matchedCat ? matchedCat.id : parsedData.category_id,
+        category_name: matchedCat ? matchedCat.name : parsedData.category_name,
+      });
     }
-  }, [parsedData]);
+  }, [parsedData, categories]);
 
   if (!isOpen || !formData) return null;
 

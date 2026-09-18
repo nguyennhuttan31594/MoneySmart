@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Mapping dictionary for category keyword matching
+const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
+  'Ăn uống': ['ăn uống', 'an uong', 'ăn', 'uống', 'phở', 'cơm', 'bún', 'bánh', 'trà sữa', 'cà phê', 'cafe', 'ăn sáng', 'ăn trưa', 'ăn tối', 'nhà hàng', 'quán ăn', 'đi chợ', 'siêu thị', 'thức ăn', 'nước uống', 'nhậu', 'bia'],
+  'Xăng xe & Di chuyển': ['xăng', 'xăng xe', 'di chuyển', 'xe cộ', 'grab', 'gojek', 'be', 'gửi xe', 'sửa xe', 'vé xe', 'vé máy bay', 'taxi', 'đi lại', 'ô tô', 'xe máy', 'bãi xe'],
+  'Tiền điện nước & Hóa đơn': ['tiền điện', 'tiền nước', 'hóa đơn', 'điện', 'nước', 'internet', 'wifi', 'điện thoại', 'nạp tiền', 'nạp thẻ', 'truyền hình', 'phí chung cư', 'rác'],
+  'Nhà ở / Tiền phòng': ['nhà ở', 'tiền phòng', 'tiền nhà', 'thuê nhà', 'tiền trọ', 'phòng trọ', 'khách sạn', 'homestay', 'sửa nhà', 'nội thất'],
+  'Học tập': ['học tập', 'học phí', 'tiền học', 'sách', 'vở', 'dụng cụ học tập', 'khóa học', 'gia sư', 'trường học'],
+  'Sức khỏe & Y tế': ['sức khỏe', 'y tế', 'thuốc', 'tiền thuốc', 'nhà thuốc', 'khám bệnh', 'bệnh viện', 'nha khoa', 'bảo hiểm y tế', 'bác sĩ', 'thuốc tây'],
+  'Mua sắm': ['mua sắm', 'quần áo', 'giày dép', 'đồ dùng', 'mỹ phẩm', 'tiki', 'shopee', 'lazada', 'tiktok shop', 'phụ kiện', 'túi xách', 'đồng hồ', 'sắm'],
+  'Giải trí & Du lịch': ['giải trí', 'du lịch', 'xem phim', 'chơi game', 'game', 'vé xem phim', 'nạp game', 'ca nhạc', 'karaoke', 'nghỉ dưỡng', 'dã ngoại'],
+  'Vay nợ / Trả nợ': ['vay nợ', 'trả nợ', 'mượn tiền', 'trả góp', 'ngân hàng', 'cho vay', 'đòi nợ', 'tín dụng', 'lãi suất'],
+  'Lương': ['lương', 'tiền lương', 'nhận lương', 'chuyển lương'],
+  'Thưởng': ['thưởng', 'tiền thưởng', 'lì xì', 'hoa hồng', 'thưởng tết'],
+  'Đầu tư': ['đầu tư', 'chứng khoán', 'bất động sản', 'lãi', 'tiền lãi', 'tiết kiệm', 'coin', 'crypto'],
+};
+
 export async function POST(req: NextRequest) {
   try {
     const { text, currentDate, categories } = await req.json();
@@ -13,6 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.GEMINI_API_KEY?.trim();
+    let rawResult: any = null;
 
     // Try Gemini API if key is configured
     if (apiKey) {
@@ -26,18 +43,11 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        const categoryContext = categories && categories.length > 0
-          ? JSON.stringify(categories.map((c: any) => ({ id: c.id, name: c.name, type: c.type })))
-          : '[]';
-
         const prompt = `
 Bạn là một trợ lý tài chính thông minh tiếng Việt. Hãy phân tích câu thoại thu nhập/chi tiêu sau đây của người dùng:
 "${text}"
 
 Bối cảnh thời gian hiện tại của hệ thống: ${currentDate || new Date().toISOString()}
-
-Danh sách danh mục có sẵn của người dùng:
-${categoryContext}
 
 NHIỆM VỤ CỦA BẠN:
 1. Xác định số tiền (amount): Trích xuất con số tiền tệ chính xác theo đơn vị VND.
@@ -53,8 +63,27 @@ NHIỆM VỤ CỦA BẠN:
      + 1.5 triệu / 1.5 củ / 1.5tr -> 1500000
      + 15 củ -> 15000000
    - Số nguyên lớn >= 1000 (vd: 50000, 200000, 1500000) giữ nguyên giá trị VND.
+
 2. Phân loại type: 'expense' (chi tiêu/trả tiền/mua) hoặc 'income' (lương/thưởng/nhận tiền/được cho).
-3. Khớp category_id & category_name: Chọn danh mục phù hợp nhất từ danh sách danh mục có sẵn trên. Nếu không tìm thấy category trùng khớp tuyệt đối, hãy chọn category có tên gần nhất hoặc danh mục "Khác".
+
+3. BẮT BUỘC ÉP DANH MỤC (category_name) THUỘC ĐÚNG 1 TRONG CÁC CHUỖI TÊN CỐ ĐỊNH SAU (ENUM):
+   - Nếu type là 'expense' (Chi tiêu), CHỈ ĐƯỢC CHỌN 1 TRONG CÁC TÊN SAU:
+     1. "Ăn uống"
+     2. "Xăng xe & Di chuyển"
+     3. "Tiền điện nước & Hóa đơn"
+     4. "Nhà ở / Tiền phòng"
+     5. "Học tập"
+     6. "Sức khỏe & Y tế"
+     7. "Mua sắm"
+     8. "Giải trí & Du lịch"
+     9. "Vay nợ / Trả nợ"
+     10. "Khác"
+   - Nếu type là 'income' (Thu nhập), CHỈ ĐƯỢC CHỌN 1 TRONG CÁC TÊN SAU:
+     1. "Lương"
+     2. "Thưởng"
+     3. "Đầu tư"
+     4. "Khác (Thu nhập)"
+
 4. Trích xuất description: Tóm tắt nội dung giao dịch ngắn gọn (vd: "Đi ăn cơm tấm", "Trả tiền điện", "Nhận lương tháng 9").
 5. Giải mã transaction_date: Chuyển đổi các cụm từ thời gian tương đối như "hôm qua", "thứ 2 tuần trước", "hôm kia", "sáng nay", "tối qua" thành chuỗi ngày định dạng YYYY-MM-DD dựa vào thời gian hiện tại. Nếu không đề cập thời gian, sử dụng ngày hiện tại.
 
@@ -62,8 +91,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
 {
   "amount": 300000,
   "type": "expense",
-  "category_id": "string-uuid-id",
-  "category_name": "Tên danh mục",
+  "category_name": "Ăn uống",
   "description": "Nội dung giao dịch ngắn",
   "transaction_date": "YYYY-MM-DD"
 }
@@ -71,9 +99,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
-        const parsedData = JSON.parse(responseText);
-
-        return NextResponse.json(parsedData);
+        rawResult = JSON.parse(responseText);
       } catch (geminiError) {
         console.warn('Gemini API call failed, falling back to regex parser:', geminiError);
       }
@@ -82,8 +108,13 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
     }
 
     // Fallback rule-based parser if Gemini Key is missing or API failed
-    const parsedFallback = mockVietnameseParser(text, currentDate, categories);
-    return NextResponse.json(parsedFallback);
+    if (!rawResult) {
+      rawResult = mockVietnameseParser(text, currentDate);
+    }
+
+    // Normalize category mapping against Frontend category list
+    const finalParsedData = normalizeCategoryResult(rawResult, text, categories);
+    return NextResponse.json(finalParsedData);
 
   } catch (error: any) {
     console.error('Error parsing voice input:', error);
@@ -94,8 +125,78 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
   }
 }
 
+// Normalize and map category name & id to exact frontend category objects
+function normalizeCategoryResult(raw: any, rawText: string, categories: any[]) {
+  const type = raw?.type === 'income' ? 'income' : 'expense';
+  const textLower = rawText.toLowerCase();
+  const catInputLower = (raw?.category_name || raw?.category_id || '').toLowerCase();
+
+  // Find candidate categories for this type (only children categories)
+  const availableCats = categories && categories.length > 0
+    ? categories.filter((c: any) => c.type === type && c.parent_id !== null)
+    : [];
+
+  let matchedCat: any = null;
+
+  // 1. Exact match by category name or category id
+  if (catInputLower) {
+    matchedCat = availableCats.find(
+      (c: any) =>
+        c.name.toLowerCase() === catInputLower ||
+        c.id.toLowerCase() === catInputLower
+    );
+  }
+
+  // 2. Keyword Mapping Dictionary Match
+  if (!matchedCat) {
+    for (const [standardName, keywords] of Object.entries(CATEGORY_MAPPING_RULES)) {
+      const matchKeyword = keywords.some(
+        (kw) => catInputLower.includes(kw) || textLower.includes(kw)
+      );
+      if (matchKeyword) {
+        matchedCat = availableCats.find(
+          (c: any) => c.name.toLowerCase() === standardName.toLowerCase()
+        );
+        if (matchedCat) break;
+      }
+    }
+  }
+
+  // 3. Substring match
+  if (!matchedCat && catInputLower) {
+    matchedCat = availableCats.find(
+      (c: any) =>
+        c.name.toLowerCase().includes(catInputLower) ||
+        catInputLower.includes(c.name.toLowerCase())
+    );
+  }
+
+  // 4. Default fallback category if no match
+  if (!matchedCat) {
+    matchedCat = availableCats.find((c: any) => c.type === type) || {
+      id: type === 'income' ? 'cat-c-salary' : 'cat-c-food',
+      name: type === 'income' ? 'Lương' : 'Ăn uống',
+    };
+  }
+
+  // Amount parsing safety
+  let amount = typeof raw?.amount === 'number' && !isNaN(raw.amount) ? raw.amount : 0;
+  if (amount < 1000 && amount > 0) {
+    amount = amount * 1000;
+  }
+
+  return {
+    amount,
+    type,
+    category_id: matchedCat.id,
+    category_name: matchedCat.name,
+    description: raw?.description || rawText,
+    transaction_date: raw?.transaction_date || new Date().toISOString().split('T')[0],
+  };
+}
+
 // Improved rule-based parser when Gemini API Key is missing or fails
-function mockVietnameseParser(text: string, currentDate: string, categories: any[]) {
+function mockVietnameseParser(text: string, currentDate: string) {
   const lower = text.toLowerCase();
 
   // Extract amount
@@ -109,11 +210,9 @@ function mockVietnameseParser(text: string, currentDate: string, categories: any
   } else if (cuMatch) {
     amount = parseFloat(cuMatch[1].replace(',', '.')) * 1000000;
   } else if (numberMatches && numberMatches.length > 0) {
-    // Take the last extracted number sequence
     const rawVal = parseFloat(numberMatches[numberMatches.length - 1].replace(',', '.'));
     if (!isNaN(rawVal)) {
       if (rawVal < 1000) {
-        // Single digits like 300, 50, 100 correspond to thousand VND (vd: 300 = 300000, 50 = 50000)
         amount = rawVal * 1000;
       } else {
         amount = rawVal;
@@ -134,16 +233,6 @@ function mockVietnameseParser(text: string, currentDate: string, categories: any
   }
   const transaction_date = dateObj.toISOString().split('T')[0];
 
-  // Category matching
-  let matchedCat = categories?.find((c) => {
-    const cName = c.name.toLowerCase();
-    return lower.includes(cName) || cName.includes(lower);
-  });
-
-  if (!matchedCat && categories && categories.length > 0) {
-    matchedCat = categories.find((c) => c.type === type) || categories[0];
-  }
-
   // Description cleanup
   const cleanDesc = text
     .replace(/\d+[\.,]?\d*\s*(k|củ|cu|tr|triệu|trieu|ngàn|ngan|nghìn|nghin)?/gi, '')
@@ -152,8 +241,6 @@ function mockVietnameseParser(text: string, currentDate: string, categories: any
   return {
     amount,
     type,
-    category_id: matchedCat?.id || 'cat-c-food',
-    category_name: matchedCat?.name || 'Ăn uống',
     description: cleanDesc || text,
     transaction_date,
   };
