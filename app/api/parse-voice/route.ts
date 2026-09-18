@@ -14,26 +14,22 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // Fallback parser if Gemini API Key is missing
-    if (!apiKey) {
-      console.warn('GEMINI_API_KEY not found. Using regex fallback parsing.');
-      const parsedFallback = mockVietnameseParser(text, currentDate, categories);
-      return NextResponse.json(parsedFallback);
-    }
+    // Try Gemini API if key is configured
+    if (apiKey) {
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          generationConfig: {
+            responseMimeType: 'application/json',
+          },
+        });
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-      },
-    });
+        const categoryContext = categories && categories.length > 0
+          ? JSON.stringify(categories.map((c: any) => ({ id: c.id, name: c.name, type: c.type })))
+          : '[]';
 
-    const categoryContext = categories && categories.length > 0
-      ? JSON.stringify(categories.map((c: any) => ({ id: c.id, name: c.name, type: c.type })))
-      : '[]';
-
-    const prompt = `
+        const prompt = `
 Bạn là một trợ lý tài chính thông minh tiếng Việt. Hãy phân tích câu thoại thu nhập/chi tiêu sau đây của người dùng:
 "${text}"
 
@@ -64,11 +60,20 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
 }
 `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    const parsedData = JSON.parse(responseText);
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        const parsedData = JSON.parse(responseText);
 
-    return NextResponse.json(parsedData);
+        return NextResponse.json(parsedData);
+      } catch (geminiError) {
+        console.warn('Gemini API call failed, falling back to regex parser:', geminiError);
+      }
+    }
+
+    // Fallback rule-based parser if Gemini Key is missing or API failed
+    const parsedFallback = mockVietnameseParser(text, currentDate, categories);
+    return NextResponse.json(parsedFallback);
+
   } catch (error: any) {
     console.error('Error parsing voice input:', error);
     return NextResponse.json(
@@ -78,7 +83,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
   }
 }
 
-// Simple rule-based parser when Gemini API Key is not configured yet
+// Simple rule-based parser when Gemini API Key is missing or fails
 function mockVietnameseParser(text: string, currentDate: string, categories: any[]) {
   const lower = text.toLowerCase();
   
