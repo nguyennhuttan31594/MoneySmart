@@ -12,11 +12,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
 
     // Try Gemini API if key is configured
     if (apiKey) {
       try {
+        console.log('Gemini API Key detected. Calling Gemini API gemini-1.5-flash...');
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
           model: 'gemini-1.5-flash',
@@ -39,11 +40,19 @@ Danh sách danh mục có sẵn của người dùng:
 ${categoryContext}
 
 NHIỆM VỤ CỦA BẠN:
-1. Xác định số tiền (amount): Trích xuất con số tiền tệ chính xác theo VND.
-   - 25k -> 25000
-   - 500k / 500 ngàn -> 500000
-   - 1.5 triệu / 1.5 củ -> 1500000
-   - 15 củ -> 15000000
+1. Xác định số tiền (amount): Trích xuất con số tiền tệ chính xác theo đơn vị VND.
+   - Các số tự nhiên đơn lẻ/ngắn như 300, 50, 100, 35, 500 khi đứng trong ngữ cảnh chi tiêu đều HIỂU NGẦM tương ứng với đơn vị NGHÌN ĐỒNG (x 1.000):
+     + 300 -> 300000
+     + 50 -> 50000
+     + 100 -> 100000
+     + 35 -> 35000
+     + 500 -> 500000
+   - Các định dạng viết tắt khác:
+     + 25k / 25 ngàn -> 25000
+     + 500k / 500 nghìn -> 500000
+     + 1.5 triệu / 1.5 củ / 1.5tr -> 1500000
+     + 15 củ -> 15000000
+   - Số nguyên lớn >= 1000 (vd: 50000, 200000, 1500000) giữ nguyên giá trị VND.
 2. Phân loại type: 'expense' (chi tiêu/trả tiền/mua) hoặc 'income' (lương/thưởng/nhận tiền/được cho).
 3. Khớp category_id & category_name: Chọn danh mục phù hợp nhất từ danh sách danh mục có sẵn trên. Nếu không tìm thấy category trùng khớp tuyệt đối, hãy chọn category có tên gần nhất hoặc danh mục "Khác".
 4. Trích xuất description: Tóm tắt nội dung giao dịch ngắn gọn (vd: "Đi ăn cơm tấm", "Trả tiền điện", "Nhận lương tháng 9").
@@ -51,7 +60,7 @@ NHIỆM VỤ CỦA BẠN:
 
 Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
 {
-  "amount": 500000,
+  "amount": 300000,
   "type": "expense",
   "category_id": "string-uuid-id",
   "category_name": "Tên danh mục",
@@ -68,6 +77,8 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
       } catch (geminiError) {
         console.warn('Gemini API call failed, falling back to regex parser:', geminiError);
       }
+    } else {
+      console.warn('GEMINI_API_KEY is missing in process.env. Using fallback regex parser.');
     }
 
     // Fallback rule-based parser if Gemini Key is missing or API failed
@@ -83,28 +94,35 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
   }
 }
 
-// Simple rule-based parser when Gemini API Key is missing or fails
+// Improved rule-based parser when Gemini API Key is missing or fails
 function mockVietnameseParser(text: string, currentDate: string, categories: any[]) {
   const lower = text.toLowerCase();
-  
+
   // Extract amount
   let amount = 0;
   const kMatch = lower.match(/(\d+[\.,]?\d*)\s*(k|ngàn|ngan|nghìn|nghin)/);
   const cuMatch = lower.match(/(\d+[\.,]?\d*)\s*(củ|cu|triệu|trieu|tr)/);
-  const plainMatch = lower.match(/(\d{4,10})/);
+  const numberMatches = lower.match(/(\d+[\.,]?\d*)/g);
 
   if (kMatch) {
     amount = parseFloat(kMatch[1].replace(',', '.')) * 1000;
   } else if (cuMatch) {
     amount = parseFloat(cuMatch[1].replace(',', '.')) * 1000000;
-  } else if (plainMatch) {
-    amount = parseInt(plainMatch[1], 10);
-  } else {
-    amount = 50000;
+  } else if (numberMatches && numberMatches.length > 0) {
+    // Take the last extracted number sequence
+    const rawVal = parseFloat(numberMatches[numberMatches.length - 1].replace(',', '.'));
+    if (!isNaN(rawVal)) {
+      if (rawVal < 1000) {
+        // Single digits like 300, 50, 100 correspond to thousand VND (vd: 300 = 300000, 50 = 50000)
+        amount = rawVal * 1000;
+      } else {
+        amount = rawVal;
+      }
+    }
   }
 
   // Type
-  const isIncome = lower.includes('lương') || lower.includes('thưởng') || lower.includes('nhận') || lower.includes('thu');
+  const isIncome = lower.includes('lương') || lower.includes('luong') || lower.includes('thưởng') || lower.includes('thuong') || lower.includes('nhận') || lower.includes('nhan') || lower.includes('thu');
   const type = isIncome ? 'income' : 'expense';
 
   // Relative Date
@@ -126,12 +144,17 @@ function mockVietnameseParser(text: string, currentDate: string, categories: any
     matchedCat = categories.find((c) => c.type === type) || categories[0];
   }
 
+  // Description cleanup
+  const cleanDesc = text
+    .replace(/\d+[\.,]?\d*\s*(k|củ|cu|tr|triệu|trieu|ngàn|ngan|nghìn|nghin)?/gi, '')
+    .trim();
+
   return {
     amount,
     type,
     category_id: matchedCat?.id || 'cat-c-food',
     category_name: matchedCat?.name || 'Ăn uống',
-    description: text.replace(/\d+\s*(k|củ|tr|triệu|ngàn)?/gi, '').trim() || text,
+    description: cleanDesc || text,
     transaction_date,
   };
 }
