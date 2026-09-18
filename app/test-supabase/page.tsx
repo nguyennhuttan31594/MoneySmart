@@ -67,7 +67,7 @@ export default function TestSupabasePage() {
       fontFamily: 'sans-serif'
     }}>
       <h1 style={{ fontSize: '24px', color: '#38bdf8', marginTop: 0 }}>
-        💰 ManageMoney - Kiểm tra kết nối Supabase
+        💰 MoneySmartflow - Kiểm tra kết nối Supabase
       </h1>
       
       <div style={{

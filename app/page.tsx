@@ -44,8 +44,8 @@ export default function Home() {
           console.error('Supabase load error:', err);
         }
       } else {
-        const localCats = localStorage.getItem('moneyflow_categories');
-        const localTxs = localStorage.getItem('moneyflow_transactions');
+        const localCats = localStorage.getItem('moneysmartflow_categories') || localStorage.getItem('moneyflow_categories');
+        const localTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
         if (localCats) setCategories(JSON.parse(localCats));
         if (localTxs) setTransactions(JSON.parse(localTxs));
       }
@@ -56,13 +56,13 @@ export default function Home() {
   // LocalStorage Fallback persistence
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      localStorage.setItem('moneyflow_categories', JSON.stringify(categories));
+      localStorage.setItem('moneysmartflow_categories', JSON.stringify(categories));
     }
   }, [categories]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      localStorage.setItem('moneyflow_transactions', JSON.stringify(transactions));
+      localStorage.setItem('moneysmartflow_transactions', JSON.stringify(transactions));
     }
   }, [transactions]);
 
@@ -178,7 +178,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 {/* Title: font-bold text-3xl tracking-tight */}
                 <h1 className="text-3xl font-bold tracking-tight text-black">
-                  Moneyflow
+                  MoneySmartflow
                 </h1>
                 {/* Database Compact Status Pill Badge */}
                 <span className="flex items-center gap-1.5 text-[11px] font-semibold bg-white border border-black/[0.06] rounded-full px-2.5 py-0.5 shadow-sm text-[#8E8E93]">
@@ -186,8 +186,8 @@ export default function Home() {
                   {isSupabaseConfigured ? 'Supabase Live' : 'Local Storage'}
                 </span>
               </div>
-              {/* Subtitle: text nhỏ #8E8E93 */}
-              <p className="text-xs text-[#8E8E93]">iOS Clean Expense Tracker</p>
+              {/* Subtitle: Slogan chính thức */}
+              <p className="text-xs text-[#8E8E93]">Quản lý tài chính cá nhân</p>
             </div>
           </div>
         </div>

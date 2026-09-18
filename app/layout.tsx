@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Voice Expense Tracker - Quản lý Chi tiêu Giọng nói Tiếng Việt',
-  description: 'Ghi chép thu chi bằng giọng nói tiếng Việt tự nhiên với AI nhận diện thông minh, báo cáo trực quan Recharts và hệ thống danh mục 2 cấp.',
+  title: 'MoneySmartflow - Quản lý tài chính cá nhân',
+  description: 'MoneySmartflow - Quản lý tài chính cá nhân bằng giọng nói tiếng Việt tự nhiên với AI nhận diện thông minh, báo cáo trực quan Recharts và hệ thống danh mục chuẩn.',
 };
 
 export default function RootLayout({
