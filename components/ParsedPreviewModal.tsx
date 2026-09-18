@@ -134,9 +134,14 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
               <DollarSign className="w-3.5 h-3.5 text-[#007AFF]" strokeWidth={2.2} /> Số tiền (VND)
             </label>
             <input
-              type="number"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+              type="text"
+              inputMode="numeric"
+              value={formData.amount ? new Intl.NumberFormat('vi-VN').format(formData.amount) : ''}
+              onChange={(e) => {
+                const rawDigits = e.target.value.replace(/\D/g, '');
+                setFormData({ ...formData, amount: rawDigits ? Number(rawDigits) : 0 });
+              }}
+              placeholder="0"
               className="w-full bg-[#F2F2F7] border border-black/[0.05] rounded-2xl px-4 py-2.5 text-2xl font-black text-[#007AFF] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition"
               required
             />

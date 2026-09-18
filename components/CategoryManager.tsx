@@ -135,10 +135,14 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
               <div>
                 <label className="text-xs font-medium text-[#8E8E93] mb-1 block">Ngân sách tháng (VND)</label>
                 <input
-                  type="number"
-                  value={budgetLimit}
-                  onChange={(e) => setBudgetLimit(e.target.value ? Number(e.target.value) : '')}
-                  placeholder="VD: 3000000"
+                  type="text"
+                  inputMode="numeric"
+                  value={budgetLimit ? new Intl.NumberFormat('vi-VN').format(Number(budgetLimit)) : ''}
+                  onChange={(e) => {
+                    const rawDigits = e.target.value.replace(/\D/g, '');
+                    setBudgetLimit(rawDigits ? Number(rawDigits) : '');
+                  }}
+                  placeholder="VD: 3.000.000"
                   className="w-full bg-white border border-black/[0.05] rounded-xl px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
                 />
               </div>
