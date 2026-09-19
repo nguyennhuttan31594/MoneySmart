@@ -156,6 +156,55 @@ export default function Home() {
     }
   }, [transactions, isLoaded]);
 
+  // Supabase Realtime Subscription for instant cross-device sync (Phone <-> PC)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const channel = supabase
+      .channel('realtime_transactions_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newTx = payload.new as Transaction;
+            setTransactions((prev) => {
+              // Replace temp optimistic tx or add new
+              const exists = prev.some((t) => t.id === newTx.id);
+              if (exists) return prev;
+              const filtered = prev.filter(
+                (t) => !(t.description === newTx.description && t.amount === newTx.amount && t.id.startsWith('tx-'))
+              );
+              const updated = [newTx, ...filtered].sort(
+                (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+              );
+              localStorage.setItem('moneysmartflow_transactions', JSON.stringify(updated));
+              return updated;
+            });
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old.id;
+            setTransactions((prev) => {
+              const updated = prev.filter((t) => t.id !== deletedId);
+              localStorage.setItem('moneysmartflow_transactions', JSON.stringify(updated));
+              return updated;
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedTx = payload.new as Transaction;
+            setTransactions((prev) => {
+              const updated = prev.map((t) => (t.id === updatedTx.id ? updatedTx : t));
+              localStorage.setItem('moneysmartflow_transactions', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase?.removeChannel(channel);
+    };
+  }, []);
+
   // Voice & Text transcript handler -> calls Gemini API route
   const handleTranscriptComplete = async (text: string) => {
     setIsProcessingVoice(true);
