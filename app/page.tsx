@@ -395,9 +395,8 @@ export default function Home() {
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                background: isSupabaseConfigured ? 'var(--green)' : 'var(--orange)',
+                background: isSupabaseConfigured ? '#34C759' : '#FF9500',
                 display: 'inline-block',
-                animation: 'pulse-dot 2s cubic-bezier(0.32,0.72,0,1) infinite',
                 flexShrink: 0,
               }}
               aria-hidden="true"

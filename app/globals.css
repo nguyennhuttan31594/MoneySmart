@@ -117,8 +117,8 @@ html {
 }
 
 body {
-  /* systemGroupedBackground — NOT white */
-  background-color: var(--bg-grouped);
+  /* systemGroupedBackground — iOS #F2F2F7, NOT white, NOT dark */
+  background-color: #F2F2F7 !important;
   color: var(--label);
   font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Inter var", system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
