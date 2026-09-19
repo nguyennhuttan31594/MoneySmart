@@ -12,8 +12,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className="dark">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white">
+    <html lang="vi">
+      <body
+        style={{
+          minHeight: '100dvh',
+          background: 'var(--bg-grouped)',
+          color: 'var(--label)',
+          WebkitFontSmoothing: 'antialiased',
+        }}
+      >
         {children}
       </body>
     </html>

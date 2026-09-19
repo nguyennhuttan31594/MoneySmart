@@ -2,130 +2,98 @@
 
 import React from 'react';
 import {
-  Utensils,
-  Car,
-  Zap,
-  ShoppingBag,
-  HeartPulse,
-  Baby,
-  CreditCard,
-  Wallet,
-  Tag,
-  TrendingUp,
+  Utensils, Car, Zap, ShoppingBag, HeartPulse,
+  Baby, CreditCard, Wallet, Tag, TrendingUp,
 } from 'lucide-react';
 
-interface CategoryIcon3DProps {
+interface CategoryIconProps {
   categoryName?: string;
   iconName?: string;
   isExpense?: boolean;
-  size?: number;
+  size?: 'sm' | 'md';  /* sm=32px (reports), md=40px (transactions) */
 }
 
-type IconConfig = {
-  gradient: string;
-  solidColor: string;
-  icon: React.ReactNode;
+type IconCfg = {
+  color: string;       /* iOS system color for glyph */
+  bgAlpha: number;     /* tinted bg alpha */
+  Icon: React.ElementType;
 };
 
-const getIconConfig = (categoryName: string, iconName: string, isExpense: boolean): IconConfig => {
-  const name = (categoryName || '').toLowerCase();
-  const icon = (iconName || '').toLowerCase();
+const getCfg = (name: string, icon: string, isExpense: boolean): IconCfg => {
+  const n = name.toLowerCase();
+  const ic = icon.toLowerCase();
 
-  // --- Chi tiêu categories ---
-  if (name.includes('ăn uống') || name.includes('cà phê') || name.includes('ăn') || icon === 'utensils') {
-    return {
-      gradient: 'linear-gradient(135deg, #FF9F0A 0%, #FF375F 100%)',
-      solidColor: '#FF375F',
-      icon: <Utensils style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
-  if (name.includes('di chuyển') || name.includes('xăng') || name.includes('xe') || icon === 'car') {
-    return {
-      gradient: 'linear-gradient(135deg, #64D2FF 0%, #0A84FF 100%)',
-      solidColor: '#0A84FF',
-      icon: <Car style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
-  if (name.includes('hóa đơn') || name.includes('điện nước') || icon === 'zap') {
-    return {
-      gradient: 'linear-gradient(135deg, #5E5CE6 0%, #5856D6 100%)',
-      solidColor: '#5E5CE6',
-      icon: <Zap style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
-  if (name.includes('mua sắm') || name.includes('giải trí') || icon === 'shoppingbag') {
-    return {
-      gradient: 'linear-gradient(135deg, #BF5AF2 0%, #AF52DE 100%)',
-      solidColor: '#BF5AF2',
-      icon: <ShoppingBag style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
-  if (name.includes('sức khỏe') || name.includes('y tế') || name.includes('bệnh') || icon === 'stethoscope' || icon === 'heartpulse') {
-    return {
-      gradient: 'linear-gradient(135deg, #FF375F 0%, #FF2D55 100%)',
-      solidColor: '#FF375F',
-      icon: <HeartPulse style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
-  if (name.includes('con cái') || name.includes('trẻ em') || icon === 'baby') {
-    return {
-      gradient: 'linear-gradient(135deg, #FFD60A 0%, #FF9F0A 100%)',
-      solidColor: '#FF9F0A',
-      icon: <Baby style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
-  if (name.includes('trả nợ') || name.includes('vay') || icon === 'creditcard') {
-    return {
-      gradient: 'linear-gradient(135deg, #FF6961 0%, #FF453A 100%)',
-      solidColor: '#FF453A',
-      icon: <CreditCard style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
+  if (n.includes('ăn uống') || n.includes('cà phê') || n.includes('ăn') || ic === 'utensils')
+    return { color: 'var(--orange)', bgAlpha: 0.12, Icon: Utensils };
 
-  // --- Thu nhập ---
-  if (name.includes('thu nhập') || name.includes('lương') || !isExpense || icon === 'wallet') {
-    return {
-      gradient: 'linear-gradient(135deg, #30D158 0%, #28CD41 100%)',
-      solidColor: '#30D158',
-      icon: <Wallet style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
+  if (n.includes('di chuyển') || n.includes('xăng') || n.includes('xe') || ic === 'car')
+    return { color: 'var(--indigo)', bgAlpha: 0.12, Icon: Car };
 
-  // Default fallback
-  if (isExpense) {
-    return {
-      gradient: 'linear-gradient(135deg, #8E8E93 0%, #636366 100%)',
-      solidColor: '#8E8E93',
-      icon: <Tag style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-    };
-  }
-  return {
-    gradient: 'linear-gradient(135deg, #30D158 0%, #28CD41 100%)',
-    solidColor: '#30D158',
-    icon: <TrendingUp style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />,
-  };
+  if (n.includes('hóa đơn') || n.includes('điện nước') || ic === 'zap')
+    return { color: 'var(--purple)', bgAlpha: 0.12, Icon: Zap };
+
+  if (n.includes('mua sắm') || n.includes('giải trí') || ic === 'shoppingbag')
+    return { color: 'var(--pink)', bgAlpha: 0.12, Icon: ShoppingBag };
+
+  if (n.includes('sức khỏe') || n.includes('y tế') || n.includes('bệnh') || ic === 'heartpulse' || ic === 'stethoscope')
+    return { color: 'var(--red)', bgAlpha: 0.12, Icon: HeartPulse };
+
+  if (n.includes('con cái') || n.includes('trẻ em') || ic === 'baby')
+    return { color: 'var(--yellow)', bgAlpha: 0.12, Icon: Baby };
+
+  if (n.includes('trả nợ') || n.includes('vay') || ic === 'creditcard')
+    return { color: 'var(--red)', bgAlpha: 0.10, Icon: CreditCard };
+
+  if (!isExpense || n.includes('thu nhập') || n.includes('lương') || ic === 'wallet')
+    return { color: 'var(--green)', bgAlpha: 0.12, Icon: Wallet };
+
+  if (n.includes('tiết kiệm') || n.includes('đầu tư'))
+    return { color: 'var(--teal)', bgAlpha: 0.12, Icon: TrendingUp };
+
+  return isExpense
+    ? { color: 'var(--label-secondary)', bgAlpha: 0.08, Icon: Tag }
+    : { color: 'var(--green)', bgAlpha: 0.12, Icon: Wallet };
 };
 
-export const CategoryIcon3D: React.FC<CategoryIcon3DProps> = ({
+export const CategoryIcon: React.FC<CategoryIconProps> = ({
   categoryName = '',
   iconName = '',
   isExpense = true,
+  size = 'md',
 }) => {
-  const config = getIconConfig(categoryName, iconName, isExpense);
+  const dim = size === 'sm' ? 32 : 40;
+  const iconSize = size === 'sm' ? 16 : 20;
+  const cfg = getCfg(categoryName, iconName, isExpense);
 
   return (
     <div
-      className="icon-capsule"
+      className="tx-icon flex-shrink-0"
       style={{
-        background: config.gradient,
-        boxShadow: `0 4px 16px ${config.solidColor}44, inset 0 1px 0 rgba(255,255,255,0.35)`,
+        width: dim,
+        height: dim,
+        borderRadius: '50%',
+        background: cfg.color,  /* using color-mix via opacity on container */
+        opacity: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        /* tinted circle: solid color at low alpha */
+        backgroundColor: `color-mix(in srgb, ${cfg.color} ${Math.round(cfg.bgAlpha * 100)}%, transparent)`,
       }}
     >
-      {/* Layer 2: Glyph */}
-      <span className="icon-glyph">
-        {config.icon}
-      </span>
-      {/* Layer 3: specular is handled by ::before in CSS */}
+      <cfg.Icon
+        style={{
+          width: iconSize,
+          height: iconSize,
+          color: cfg.color,
+          flexShrink: 0,
+        }}
+        strokeWidth={1.8}
+        aria-hidden="true"
+      />
     </div>
   );
 };
+
+/* Legacy name export for backward compat */
+export const CategoryIcon3D = CategoryIcon;

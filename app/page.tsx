@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Category, Transaction, ParsedVoiceResult } from '@/lib/types';
 import { DEFAULT_CATEGORIES, INITIAL_TRANSACTIONS } from '@/lib/default-data';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -18,11 +18,43 @@ export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Default active tab: [Nhật ký] (transactions)
   const [activeTab, setActiveTab] = useState<'transactions' | 'reports' | 'categories'>('transactions');
+  const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [parsedResult, setParsedResult] = useState<ParsedVoiceResult | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  /* ── Scroll-aware header state ── */
+  const [scrolled, setScrolled] = useState(false);
+  const [scrolledFar, setScrolledFar] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  /* ── FAB focus state — hides tab bar ── */
+  const [fabFocused, setFabFocused] = useState(false);
+
+  /* ── Scroll listener for header edge effect ── */
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const y = el.scrollTop;
+      setScrolled(y > 8);
+      setScrolledFar(y > 56);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  /* ── Haptic helper ── */
+  const vibrate = useCallback((p: number | number[]) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(p);
+  }, []);
+
+  const switchTab = useCallback((tab: typeof activeTab, idx: number) => {
+    vibrate(8);
+    setActiveTab(tab);
+    setActiveTabIdx(idx);
+  }, [vibrate]);
 
   // Helper to format local YYYY-MM-DD
   const getTodayLocalDate = (): string => {
@@ -253,133 +285,154 @@ export default function Home() {
 
   /* ─── nav tab config ─── */
   const navTabs = [
-    { id: 'transactions' as const, label: 'Nhật ký',   Icon: ListFilter },
-    { id: 'reports'      as const, label: 'Báo cáo',   Icon: PieChart   },
-    { id: 'categories'  as const, label: 'Danh mục',  Icon: Layers     },
+    { id: 'transactions' as const, label: 'Nhật ký',  Icon: ListFilter },
+    { id: 'reports'      as const, label: 'Báo cáo',  Icon: PieChart   },
+    { id: 'categories'  as const, label: 'Danh mục', Icon: Layers     },
   ];
 
+  /* ── Tab indicator width & position ── */
+  const tabW = `${100 / navTabs.length}%`;
+  const tabIndicatorLeft = `calc(${activeTabIdx} * ${tabW} + 4px)`;
+  const tabIndicatorWidth = `calc(${tabW} - 8px)`;
+
   return (
-    <main
+    /* Outer scroll container — needed for scroll-aware header */
+    <div
+      ref={mainRef}
       style={{
-        minHeight: '100dvh',
-        background: [
-          'radial-gradient(ellipse at 10% 20%,  rgba(99,179,237,0.35)  0%, transparent 55%)',
-          'radial-gradient(ellipse at 90% 10%,  rgba(183,148,244,0.30) 0%, transparent 50%)',
-          'radial-gradient(ellipse at 80% 80%,  rgba(104,211,145,0.25) 0%, transparent 55%)',
-          'radial-gradient(ellipse at 20% 85%,  rgba(252,176,69,0.20)  0%, transparent 50%)',
-          'linear-gradient(160deg, #dde8f5 0%, #e8e2f5 40%, #d8f0e5 100%)',
-        ].join(','),
-        backgroundAttachment: 'fixed',
-        paddingBottom: 128,
-        color: '#1C1C1E',
-        position: 'relative',
+        height: '100dvh',
+        overflowY: 'auto',
         overflowX: 'hidden',
+        background: 'var(--bg-grouped)',
+        position: 'relative',
+        scrollBehavior: 'smooth',
       }}
     >
-      {/* ── Decorative ambient blobs (fixed, z-0) ── */}
-      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        <div style={{
-          position: 'absolute', top: '-15%', left: '-10%',
-          width: 520, height: 520, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99,179,237,0.45) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }} />
-        <div style={{
-          position: 'absolute', top: '5%', right: '-8%',
-          width: 420, height: 420, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(183,148,244,0.40) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '10%', right: '5%',
-          width: 380, height: 380, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(104,211,145,0.35) 0%, transparent 70%)',
-          filter: 'blur(55px)',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '5%', left: '5%',
-          width: 340, height: 340, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(252,176,69,0.28) 0%, transparent 70%)',
-          filter: 'blur(55px)',
-        }} />
-      </div>
-
-      {/* ── Sticky Glass Header ── */}
+      {/* ── Scroll-aware Header ── */}
       <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 30,
-          background: 'rgba(221,232,245,0.72)',
-          backdropFilter: 'blur(28px) saturate(220%)',
-          WebkitBackdropFilter: 'blur(28px) saturate(220%)',
-          borderBottom: '1px solid rgba(255,255,255,0.55)',
-          boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.3), 0 2px 20px rgba(0,0,0,0.06)',
-          padding: '12px 20px',
-        }}
+        className={`app-header ${scrolled ? 'scrolled' : 'at-top'}`}
+        style={{ padding: '0 16px' }}
       >
-        <div style={{ maxWidth: 896, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Logo mark */}
-            <div
+        <div
+          style={{
+            maxWidth: 640,
+            margin: '0 auto',
+            padding: scrolled ? '10px 0' : '16px 0 12px',
+            transition: 'padding 300ms cubic-bezier(0.32,0.72,0,1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            position: 'relative',
+          }}
+        >
+          {/* Icon — always visible */}
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: 'var(--fill-quaternary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Wallet
+              style={{ width: 18, height: 18, color: 'var(--blue)' }}
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
+          </div>
+
+          {/* Title — Large when at top, inline when scrolled */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: scrolled ? 'center' : 'flex-end',
+              justifyContent: scrolled ? 'center' : 'flex-start',
+              paddingLeft: scrolled ? 0 : 12,
+              position: scrolled ? 'absolute' : 'relative',
+              left: scrolled ? '50%' : 'auto',
+              transform: scrolled ? 'translateX(-50%)' : 'none',
+              transition: 'all 300ms cubic-bezier(0.32,0.72,0,1)',
+            }}
+          >
+            <h1
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, #007AFF 0%, #0A84FF 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(0,122,255,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+                fontSize: scrolled ? 17 : 28,
+                fontWeight: scrolled ? 600 : 700,
+                letterSpacing: scrolled ? '-0.43px' : '-0.40px',
+                color: 'var(--label)',
+                transition: 'font-size 300ms cubic-bezier(0.32,0.72,0,1), font-weight 300ms cubic-bezier(0.32,0.72,0,1)',
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
               }}
             >
-              <Wallet style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />
-            </div>
+              MoneySmartflow
+            </h1>
+          </div>
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h1
-                  className="text-amount"
-                  style={{ fontSize: 22, color: '#1C1C1E' }}
-                >
-                  MoneySmartflow
-                </h1>
-                {/* Live DB pill */}
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: 'rgba(255,255,255,0.7)',
-                    border: '1px solid rgba(0,0,0,0.07)',
-                    borderRadius: 99,
-                    padding: '2px 10px',
-                    color: '#86868B',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: isSupabaseConfigured ? '#32D74B' : '#FF9F0A',
-                      display: 'inline-block',
-                      animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite',
-                    }}
-                  />
-                  {isSupabaseConfigured ? 'Supabase Live' : 'Local Storage'}
-                </span>
-              </div>
-              <p className="text-note" style={{ fontSize: 12, marginTop: 1 }}>Quản lý tài chính cá nhân</p>
-            </div>
+          {/* Supabase badge — always right */}
+          <div
+            className="glass-thin"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 9999,
+              padding: '3px 10px',
+              color: 'var(--label-secondary)',
+              flexShrink: 0,
+              height: 22,
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: isSupabaseConfigured ? 'var(--green)' : 'var(--orange)',
+                display: 'inline-block',
+                animation: 'pulse-dot 2s cubic-bezier(0.32,0.72,0,1) infinite',
+                flexShrink: 0,
+              }}
+              aria-hidden="true"
+            />
+            {isSupabaseConfigured ? 'Live' : 'Local'}
           </div>
         </div>
+
+        {/* Large-title subtitle — only when at top */}
+        {!scrolled && (
+          <p
+            className="type-subhead"
+            style={{
+              color: 'var(--label-secondary)',
+              maxWidth: 640,
+              margin: '0 auto',
+              paddingLeft: 48,
+              paddingBottom: 8,
+              opacity: scrolled ? 0 : 1,
+              transition: 'opacity 200ms cubic-bezier(0.4,0,0.2,1)',
+            }}
+          >
+            Quản lý tài chính cá nhân
+          </p>
+        )}
       </header>
 
-      {/* ── Main Content (z-10 above blobs) ── */}
-      <div style={{ maxWidth: 896, margin: '0 auto', padding: '20px 16px 144px', position: 'relative', zIndex: 10 }}>
+      {/* ── Page content ── */}
+      <div
+        style={{
+          maxWidth: 640,
+          margin: '0 auto',
+          padding: '16px 16px 200px',
+        }}
+      >
         {activeTab === 'transactions' && (
           <TransactionFeed
             transactions={transactions}
@@ -400,7 +453,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* ── Modal ── */}
+      {/* ── Bottom Sheet Modal ── */}
       <ParsedPreviewModal
         isOpen={isPreviewOpen}
         parsedData={parsedResult}
@@ -417,69 +470,74 @@ export default function Home() {
           left: 0,
           right: 0,
           zIndex: 40,
-          padding: '0 12px 12px',
-          background: 'linear-gradient(to top, rgba(228,229,234,0.97) 60%, rgba(228,229,234,0) 100%)',
+          padding: `0 16px calc(8px + env(safe-area-inset-bottom, 0px))`,
+          /* Fade-out gradient so content behind is readable */
+          background: 'linear-gradient(to top, var(--bg-grouped) 55%, transparent 100%)',
           pointerEvents: 'none',
         }}
       >
-        <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'auto' }}>
-          {/* Voice / Text Input */}
+        <div
+          style={{
+            maxWidth: 640,
+            margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            pointerEvents: 'auto',
+          }}
+        >
+          {/* FAB — morphing glass input */}
           <VoiceFAB
             onTranscriptComplete={handleTranscriptComplete}
             isProcessing={isProcessingVoice}
+            onFocusChange={(focused) => setFabFocused(focused)}
           />
 
-          {/* Bottom Tab Navigation */}
+          {/* Pill Tab Bar — glass, slides in/out */}
           <nav
+            className="tab-bar glass-regular"
+            aria-label="Điều hướng chính"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-around',
-              background: 'rgba(255,255,255,0.72)',
-              backdropFilter: 'blur(24px) saturate(200%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-              border: '1px solid rgba(255,255,255,0.5)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 24px rgba(0,0,0,0.1)',
-              borderRadius: 22,
-              padding: '6px 8px',
+              height: fabFocused ? 0 : 56,
+              opacity: fabFocused ? 0 : 1,
+              overflow: 'hidden',
+              margin: fabFocused ? 0 : '0 0',
+              transition: 'height 400ms cubic-bezier(0.32,0.72,0,1), opacity 280ms cubic-bezier(0.4,0,0.2,1)',
             }}
           >
-            {navTabs.map(({ id, label, Icon }) => {
+            {/* Sliding capsule indicator */}
+            <div
+              className="tab-indicator"
+              style={{
+                left: tabIndicatorLeft,
+                width: tabIndicatorWidth,
+              }}
+              aria-hidden="true"
+            />
+
+            {navTabs.map(({ id, label, Icon }, idx) => {
               const isActive = activeTab === id;
               return (
                 <button
                   key={id}
-                  onClick={() => setActiveTab(id)}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 3,
-                    padding: '6px 4px',
-                    borderRadius: 14,
-                    color: isActive ? '#007AFF' : '#86868B',
-                    background: isActive ? 'rgba(0,122,255,0.1)' : 'transparent',
-                    transition: 'all 0.18s ease',
-                  }}
+                  className={`tab-bar-btn${isActive ? ' active' : ''}`}
+                  onClick={() => switchTab(id, idx)}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={label}
                 >
-                  <Icon style={{ width: 20, height: 20 }} strokeWidth={isActive ? 2.2 : 1.8} />
-                  <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500 }}>{label}</span>
+                  <Icon
+                    style={{ width: 22, height: 22 }}
+                    strokeWidth={isActive ? 2 : 1.6}
+                    aria-hidden="true"
+                  />
+                  <span className="tab-label">{label}</span>
                 </button>
               );
             })}
           </nav>
         </div>
       </div>
-
-      {/* Pulse animation */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
-    </main>
+    </div>
   );
 }
 

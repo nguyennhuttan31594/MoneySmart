@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Transaction, Category } from '@/lib/types';
-import { Search, Trash2, Calendar, Tag } from 'lucide-react';
-import { CategoryIcon3D } from '@/components/CategoryIcon3D';
+import { Search, SlidersHorizontal } from 'lucide-react';
+import { CategoryIcon } from '@/components/CategoryIcon3D';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
@@ -11,31 +11,224 @@ interface TransactionFeedProps {
   onDeleteTransaction: (id: string) => void;
 }
 
+/* ── Format helpers ────────────────────────────────────────────── */
+const formatVND = (val: number): string =>
+  new Intl.NumberFormat('vi-VN').format(Math.abs(val)) + '\u00a0₫';
+
+const formatTimeOnly = (dateStr: string): string => {
+  try {
+    return new Date(dateStr).toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+};
+
+/* ── Haptic helper ─────────────────────────────────────────────── */
+const vibrate = (pattern: number | number[]) => {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+};
+
+/* ── Single Transaction Row ────────────────────────────────────── */
+interface TxRowProps {
+  tx: Transaction;
+  cat?: Category;
+  isLast: boolean;
+  onDelete: (id: string) => void;
+  animationDelay: number;
+}
+
+const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay }) => {
+  const [swipeX, setSwipeX] = useState(0);
+  const [startX, setStartX] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const isExpense = tx.type === 'expense';
+  const amountColor = isExpense ? 'var(--red)' : 'var(--green)';
+  const prefix = isExpense ? '−' : '+';
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartX(e.touches[0].clientX);
+    setIsDragging(false);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startX === null) return;
+    const dx = e.touches[0].clientX - startX;
+    if (dx < -8) setIsDragging(true);
+    if (isDragging) {
+      const clamped = Math.max(-120, Math.min(0, dx));
+      setSwipeX(clamped);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (swipeX < -60) {
+      setSwipeX(-120);
+    } else {
+      setSwipeX(0);
+    }
+    setStartX(null);
+    setIsDragging(false);
+  };
+
+  const handleDelete = () => {
+    vibrate([10, 40, 10]);
+    onDelete(tx.id);
+  };
+
+  return (
+    <div
+      className="animate-slide-up"
+      style={{ animationDelay: `${animationDelay}ms`, position: 'relative', overflow: 'hidden' }}
+    >
+      {/* Swipe action backdrop */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: 120,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          paddingRight: 8,
+        }}
+      >
+        <button
+          onClick={handleDelete}
+          aria-label="Xóa giao dịch"
+          style={{
+            background: 'var(--red)',
+            color: '#fff',
+            borderRadius: 12,
+            padding: '8px 16px',
+            fontSize: 13,
+            fontWeight: 600,
+            fontFamily: 'inherit',
+          }}
+        >
+          Xoá
+        </button>
+      </div>
+
+      {/* Row content — slides left on swipe */}
+      <div
+        className="tx-row"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: `translateX(${swipeX}px)`,
+          transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.32,0.72,0,1)',
+          background: 'var(--bg-elevated)',
+          /* Remove last separator handled via CSS :not(:last-child) */
+        }}
+        role="listitem"
+      >
+        {/* Col 1: Icon */}
+        <CategoryIcon
+          categoryName={cat?.name}
+          iconName={cat?.icon}
+          isExpense={isExpense}
+          size="md"
+        />
+
+        {/* Col 2: Text */}
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <p
+            className="type-headline"
+            style={{
+              color: 'var(--label)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {cat?.name ?? (isExpense ? 'Chi tiêu' : 'Thu nhập')}
+          </p>
+          <p
+            className="type-subhead"
+            style={{
+              color: 'var(--label-secondary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {formatTimeOnly(tx.transaction_date)}
+            {tx.description ? ` · ${tx.description}` : ''}
+          </p>
+        </div>
+
+        {/* Col 3: Amount */}
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <p
+            className="tabular-num"
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              letterSpacing: '-0.23px',
+              color: amountColor,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {prefix}{formatVND(tx.amount)}
+          </p>
+        </div>
+      </div>
+
+      {/* Inset separator (CSS handles, but last row needs none) */}
+      {!isLast && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 60,
+            right: 0,
+            height: '0.5px',
+            background: 'var(--separator)',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+/* ── Main Component ────────────────────────────────────────────── */
 export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   transactions,
   categories,
   onDeleteTransaction,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCatId, setSelectedCatId] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<'all' | 'expense' | 'income'>('all');
+  const [thumbIndex, setThumbIndex] = useState(0);
 
   const categoryMap = useMemo(() => {
-    const map = new Map<string, Category>();
-    categories.forEach((c) => map.set(c.id, c));
-    return map;
+    const m = new Map<string, Category>();
+    categories.forEach((c) => m.set(c.id, c));
+    return m;
   }, [categories]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      const matchesSearch =
-        t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.raw_text && t.raw_text.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesCat = selectedCatId === 'all' || t.category_id === selectedCatId;
-      const matchesType = selectedType === 'all' || t.type === selectedType;
-      return matchesSearch && matchesCat && matchesType;
+      const q = searchQuery.toLowerCase();
+      const matchSearch =
+        !q ||
+        t.description.toLowerCase().includes(q) ||
+        (t.raw_text && t.raw_text.toLowerCase().includes(q));
+      const matchType = selectedType === 'all' || t.type === selectedType;
+      return matchSearch && matchType;
     });
-  }, [transactions, searchQuery, selectedCatId, selectedType]);
+  }, [transactions, searchQuery, selectedType]);
 
   const groupedTransactions = useMemo(() => {
     const groups: { [key: string]: { label: string; dateObj: Date; items: Transaction[] } } = {};
@@ -46,232 +239,162 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
     const yesterdayStr = yesterday.toDateString();
 
     filteredTransactions.forEach((tx) => {
-      const txDate = new Date(tx.transaction_date);
-      const txDateStr = txDate.toDateString();
-      let groupKey = txDateStr;
-      let label = txDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-      if (txDateStr === todayStr) label = 'Hôm nay';
-      else if (txDateStr === yesterdayStr) label = 'Hôm qua';
-
-      if (!groups[groupKey]) groups[groupKey] = { label, dateObj: txDate, items: [] };
-      groups[groupKey].items.push(tx);
+      const d = new Date(tx.transaction_date);
+      const ds = d.toDateString();
+      let label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      if (ds === todayStr) label = 'Hôm nay';
+      else if (ds === yesterdayStr) label = 'Hôm qua';
+      if (!groups[ds]) groups[ds] = { label, dateObj: d, items: [] };
+      groups[ds].items.push(tx);
     });
 
     return Object.values(groups).sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
   }, [filteredTransactions]);
 
-  const formatVND = (val: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  const handleSegment = useCallback((idx: number, type: typeof selectedType) => {
+    vibrate(8);
+    setThumbIndex(idx);
+    setSelectedType(type);
+  }, []);
 
-  const formatTimeOnly = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
-  };
+  const segmentOptions = [
+    { label: 'Tất cả', value: 'all' as const },
+    { label: 'Chi tiêu', value: 'expense' as const },
+    { label: 'Thu nhập', value: 'income' as const },
+  ];
 
   return (
-    <div className="apple-white-card p-5 space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-cat text-xl text-black flex items-center gap-2">
-            <Calendar style={{ width: 20, height: 20, color: '#007AFF' }} strokeWidth={2} />
-            Nhật Ký Giao Dịch
-          </h2>
-          <p className="text-note text-xs mt-0.5">Sắp xếp theo dòng thời gian mới nhất</p>
-        </div>
-        <span
-          className="text-xs font-semibold px-3.5 py-1 rounded-full"
-          style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF' }}
-        >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── Header ── */}
+      <div style={{ paddingTop: 4 }}>
+        <h2 className="type-title2" style={{ color: 'var(--label)' }}>
+          Nhật Ký Giao Dịch
+        </h2>
+        <p className="type-subhead" style={{ color: 'var(--label-secondary)', marginTop: 2 }}>
           {filteredTransactions.length} giao dịch
-        </span>
+        </p>
       </div>
 
-      {/* Filter Controls */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Search */}
-        <div className="relative">
-          <Search
-            style={{ width: 15, height: 15, color: '#86868B', position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
-            strokeWidth={2}
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm nhật ký..."
+      {/* ── Search bar ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: 'var(--fill-quaternary)',
+          borderRadius: 9999,
+          padding: '0 14px',
+          height: 36,
+        }}
+      >
+        <Search
+          style={{ width: 17, height: 17, color: 'var(--label-tertiary)', flexShrink: 0 }}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Tìm kiếm..."
+          aria-label="Tìm kiếm giao dịch"
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            fontFamily: 'inherit',
+            fontSize: 17,
+            letterSpacing: '-0.43px',
+            color: 'var(--label)',
+          }}
+        />
+      </div>
+
+      {/* ── Segmented control ── */}
+      <div style={{ position: 'relative', display: 'inline-flex', alignSelf: 'flex-start' }}>
+        <div className="segment-track" style={{ position: 'relative' }}>
+          {/* Sliding thumb */}
+          <div
+            className="segment-thumb"
             style={{
-              width: '100%',
-              background: 'rgba(118,118,128,0.1)',
-              border: '1px solid rgba(0,0,0,0.05)',
-              borderRadius: 12,
-              paddingLeft: 34,
-              paddingRight: 12,
-              paddingTop: 8,
-              paddingBottom: 8,
-              fontSize: 13,
-              color: '#1C1C1E',
-              outline: 'none',
+              left: `calc(${thumbIndex} * (100% / 3) + 2px)`,
+              width: `calc(100% / 3 - 4px)`,
             }}
           />
-        </div>
-
-        {/* Category filter */}
-        <div className="relative">
-          <Tag
-            style={{ width: 15, height: 15, color: '#86868B', position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }}
-            strokeWidth={2}
-          />
-          <select
-            value={selectedCatId}
-            onChange={(e) => setSelectedCatId(e.target.value)}
-            style={{
-              width: '100%',
-              background: 'rgba(118,118,128,0.1)',
-              border: '1px solid rgba(0,0,0,0.05)',
-              borderRadius: 12,
-              paddingLeft: 34,
-              paddingRight: 12,
-              paddingTop: 8,
-              paddingBottom: 8,
-              fontSize: 13,
-              color: '#1C1C1E',
-              outline: 'none',
-              appearance: 'none',
-            }}
-          >
-            <option value="all">Tất cả danh mục</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.type === 'expense' ? 'Chi' : 'Thu'})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Type Toggle */}
-        <div className="segment-track">
-          {(['all', 'expense', 'income'] as const).map((t) => (
+          {segmentOptions.map((opt, idx) => (
             <button
-              key={t}
-              onClick={() => setSelectedType(t)}
-              className={`segment-btn flex-1 ${selectedType === t ? 'active' : ''}`}
-              style={
-                selectedType === t && t === 'expense'
-                  ? { color: '#FF453A' }
-                  : selectedType === t && t === 'income'
-                  ? { color: '#32D74B' }
-                  : {}
-              }
+              key={opt.value}
+              className={`segment-btn${selectedType === opt.value ? ' active' : ''}`}
+              onClick={() => handleSegment(idx, opt.value)}
+              aria-pressed={selectedType === opt.value}
             >
-              {t === 'all' ? 'Tất cả' : t === 'expense' ? 'Chi tiêu' : 'Thu nhập'}
+              {opt.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Timeline */}
-      <div className="space-y-5">
+      {/* ── Grouped Transaction List ── */}
+      <div
+        className="stagger-list"
+        role="list"
+        style={{ display: 'flex', flexDirection: 'column', gap: 28 }}
+      >
         {groupedTransactions.length > 0 ? (
           groupedTransactions.map((group) => (
             <div key={group.label} className="animate-slide-up">
-              {/* Date divider */}
-              <div className="date-divider">{group.label}</div>
+              {/* Date label */}
+              <p
+                className="type-caption"
+                style={{
+                  color: 'var(--label-secondary)',
+                  paddingLeft: 16,
+                  marginBottom: 8,
+                }}
+              >
+                {group.label}
+              </p>
 
-              {/* Transaction items */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {group.items.map((tx) => {
+              {/* Solid card — NOT glass */}
+              <div className="card-solid" role="list">
+                {group.items.map((tx, idx) => {
                   const cat = categoryMap.get(tx.category_id || '');
-                  const isExpense = tx.type === 'expense';
-                  const amountColor = isExpense ? '#FF453A' : '#32D74B';
-
                   return (
-                    <div key={tx.id} className="tx-item group">
-                      {/* Left: Icon + Text */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                        <CategoryIcon3D
-                          categoryName={cat?.name}
-                          iconName={cat?.icon}
-                          isExpense={isExpense}
-                        />
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p
-                            className="text-cat"
-                            style={{ fontSize: 14, color: '#1C1C1E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
-                            {cat ? cat.name : (isExpense ? 'Chi tiêu' : 'Thu nhập')}
-                          </p>
-                          <p
-                            className="text-note"
-                            style={{ fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
-                            {tx.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Right: Amount + Time + Delete */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
-                        <span
-                          className="text-amount"
-                          style={{ fontSize: 15, color: amountColor }}
-                        >
-                          {isExpense ? '-' : '+'}{formatVND(tx.amount)}
-                        </span>
-                        <span className="text-note" style={{ fontSize: 11 }}>
-                          {formatTimeOnly(tx.transaction_date)}
-                        </span>
-                      </div>
-
-                      {/* Delete button */}
-                      <button
-                        onClick={() => onDeleteTransaction(tx.id)}
-                        className="tx-delete-btn"
-                        title="Xóa giao dịch"
-                        style={{
-                          padding: '6px',
-                          borderRadius: '50%',
-                          color: '#86868B',
-                          flexShrink: 0,
-                          transition: 'color 0.15s, background 0.15s',
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.color = '#FF453A';
-                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,69,58,0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.color = '#86868B';
-                          (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                        }}
-                      >
-                        <Trash2 style={{ width: 15, height: 15 }} strokeWidth={2} />
-                      </button>
-                    </div>
+                    <TxRow
+                      key={tx.id}
+                      tx={tx}
+                      cat={cat}
+                      isLast={idx === group.items.length - 1}
+                      onDelete={onDeleteTransaction}
+                      animationDelay={idx * 30}
+                    />
                   );
                 })}
               </div>
             </div>
           ))
         ) : (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '56px 24px',
-              background: 'rgba(118,118,128,0.06)',
-              borderRadius: 20,
-              border: '1.5px dashed rgba(0,0,0,0.08)',
-            }}
-          >
-            <p className="text-cat" style={{ fontSize: 15, color: '#86868B' }}>
-              Chưa có giao dịch phù hợp
+          /* Empty state */
+          <div className="empty-state">
+            <div style={{
+              width: 64, height: 64,
+              borderRadius: '50%',
+              background: 'var(--fill-quaternary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 4,
+            }}>
+              <SlidersHorizontal
+                style={{ width: 28, height: 28, color: 'var(--label-tertiary)' }}
+                strokeWidth={1.5}
+              />
+            </div>
+            <p className="type-title3" style={{ color: 'var(--label)' }}>
+              Chưa có giao dịch
             </p>
-            <p className="text-note" style={{ fontSize: 13, marginTop: 6 }}>
-              Nói hoặc gõ vào ô ở góc dưới để ghi chép!
+            <p className="type-body" style={{ color: 'var(--label-secondary)', maxWidth: 260 }}>
+              Nói hoặc gõ vào ô bên dưới để bắt đầu ghi chép thu chi.
             </p>
           </div>
         )}

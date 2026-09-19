@@ -3,18 +3,11 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category, AnalyticsTimeframe } from '@/lib/types';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  AreaChart,
-  Area,
+  PieChart, Pie, Cell,
+  BarChart, Bar,
+  XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Legend,
+  AreaChart, Area,
 } from 'recharts';
 import { Wallet, Banknote, Shield, PieChart as PieIcon, ShieldAlert, BarChart3 } from 'lucide-react';
 
@@ -23,32 +16,33 @@ interface ReportsDashboardProps {
   categories: Category[];
 }
 
+/* ── All business logic preserved exactly ──────────────────────── */
 export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
   transactions,
   categories,
 }) => {
   const [timeframe, setTimeframe] = useState<AnalyticsTimeframe>('monthly');
+  const [thumbIdx, setThumbIdx] = useState(2); // monthly = index 2
   const [isMounted, setIsMounted] = useState(false);
 
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  React.useEffect(() => { setIsMounted(true); }, []);
 
   const formatVND = (val: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+    new Intl.NumberFormat('vi-VN').format(Math.round(Math.abs(val))) + '\u00a0₫';
 
   const formatShortVND = (val: number) => {
-    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
-    if (val >= 1000) return `${(val / 1000).toFixed(0)}k`;
+    if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+    if (val >= 1_000) return `${(val / 1_000).toFixed(0)}k`;
     return `${val}`;
   };
 
   const categoryMap = useMemo(() => {
-    const map = new Map<string, Category>();
-    categories.forEach((c) => map.set(c.id, c));
-    return map;
+    const m = new Map<string, Category>();
+    categories.forEach((c) => m.set(c.id, c));
+    return m;
   }, [categories]);
 
+  /* ── Unchanged business logic ── */
   const filteredTxs = useMemo(() => {
     const now = new Date();
     if (timeframe === 'daily') {
@@ -77,7 +71,7 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
 
   const periodData = useMemo(() => {
     const totalExpense = filteredTxs.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-    const totalIncome = filteredTxs.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const totalIncome  = filteredTxs.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
 
     const categoryTotals: Record<string, number> = {};
     filteredTxs.filter((t) => t.type === 'expense').forEach((t) => {
@@ -85,19 +79,25 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
       categoryTotals[catId] = (categoryTotals[catId] || 0) + Number(t.amount);
     });
 
-    const liquidColors = ['#FF9F0A', '#0A84FF', '#5E5CE6', '#BF5AF2', '#FF375F', '#FFD60A', '#FF453A', '#30D158'];
+    /* iOS system colors for pie */
+    const iosColors = [
+      'var(--orange)', 'var(--blue)', 'var(--indigo)', 'var(--purple)',
+      'var(--pink)', 'var(--yellow)', 'var(--red)', 'var(--green)',
+    ];
+    const iosHex = ['#FF9500','#007AFF','#5856D6','#AF52DE','#FF2D55','#FFCC00','#FF3B30','#34C759'];
+
     const pieData = Object.entries(categoryTotals).map(([catId, amount], idx) => {
       const cat = categoryMap.get(catId);
       return {
-        name: cat ? cat.name : 'Khác',
+        name: cat?.name ?? 'Khác',
         value: amount,
-        color: cat ? cat.color : liquidColors[idx % liquidColors.length],
+        color: cat?.color ?? iosHex[idx % iosHex.length],
         percentage: totalExpense > 0 ? ((amount / totalExpense) * 100).toFixed(1) : 0,
       };
     });
 
-    const childExpenseCategories = categories.filter((c) => c.type === 'expense' && c.parent_id);
-    const budgetProgress = childExpenseCategories
+    const childExpenseCats = categories.filter((c) => c.type === 'expense' && c.parent_id);
+    const budgetProgress = childExpenseCats
       .filter((c) => c.budget_limit && c.budget_limit > 0)
       .map((cat) => {
         const spent = categoryTotals[cat.id] || 0;
@@ -113,9 +113,9 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
 
   const getCardTitles = () => {
     switch (timeframe) {
-      case 'daily': return { expense: 'Tổng Chi Tiêu Hôm Nay', income: 'Thu Nhập Hôm Nay' };
+      case 'daily':  return { expense: 'Tổng Chi Tiêu Hôm Nay', income: 'Thu Nhập Hôm Nay' };
       case 'weekly': return { expense: 'Tổng Chi Tiêu Tuần Này', income: 'Thu Nhập Tuần Này' };
-      default: return { expense: 'Tổng Chi Tiêu Tháng Này', income: 'Thu Nhập Tháng Này' };
+      default:       return { expense: 'Tổng Chi Tiêu Tháng Này', income: 'Thu Nhập Tháng Này' };
     }
   };
   const titles = getCardTitles();
@@ -125,8 +125,7 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
     const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
     const barData = days.map((day) => ({ day, expense: 0, income: 0 }));
     filteredTxs.forEach((t) => {
-      const d = new Date(t.transaction_date);
-      let dayIdx = d.getDay() - 1;
+      let dayIdx = new Date(t.transaction_date).getDay() - 1;
       if (dayIdx === -1) dayIdx = 6;
       if (t.type === 'expense') barData[dayIdx].expense += Number(t.amount);
       else barData[dayIdx].income += Number(t.amount);
@@ -136,193 +135,313 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
 
   const dailyHourlyData = useMemo(() => {
     if (timeframe !== 'daily') return [];
-    const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour: `${hour}:00`, amount: 0 }));
+    const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: `${h}:00`, amount: 0 }));
     filteredTxs.forEach((t) => {
-      if (t.type === 'expense') {
-        const hour = new Date(t.transaction_date).getHours();
-        hourly[hour].amount += Number(t.amount);
-      }
+      if (t.type === 'expense') hourly[new Date(t.transaction_date).getHours()].amount += Number(t.amount);
     });
     return hourly;
   }, [filteredTxs, timeframe]);
 
+  /* ── Skeleton while hydrating ── */
   if (!isMounted) {
     return (
-      <div style={{ padding: 48, textAlign: 'center', color: '#86868B', fontWeight: 500 }}>
-        Đang tải báo cáo...
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {[240, 180, 200].map((h, i) => (
+          <div key={i} className="skeleton" style={{ height: h, borderRadius: 20 }} />
+        ))}
       </div>
     );
   }
 
-  const glassTooltipStyle = {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    backdropFilter: 'blur(12px)',
-    borderColor: 'rgba(0,0,0,0.06)',
-    borderRadius: 16,
-    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+  /* ── Tooltip style — glass-thin */
+  const tooltipStyle = {
+    background: 'rgba(255,255,255,0.88)',
+    border: '0.5px solid rgba(255,255,255,0.55)',
+    borderRadius: 12,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+    backdropFilter: 'blur(20px)',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    color: 'var(--label)',
   };
+
+  const segmentOptions = [
+    { label: 'Ngày', value: 'daily'   as const },
+    { label: 'Tuần', value: 'weekly'  as const },
+    { label: 'Tháng', value: 'monthly' as const },
+  ];
+
+  const metricCards = [
+    {
+      label: titles.expense,
+      value: periodData.totalExpense,
+      colorVar: 'var(--red)',
+      hexColor: '#FF3B30',
+      Icon: Wallet,
+      prefix: '−',
+    },
+    {
+      label: titles.income,
+      value: periodData.totalIncome,
+      colorVar: 'var(--green)',
+      hexColor: '#34C759',
+      Icon: Banknote,
+      prefix: '+',
+    },
+    {
+      label: 'Thặng Dư Tích Lũy',
+      value: periodData.totalIncome - periodData.totalExpense,
+      colorVar: 'var(--blue)',
+      hexColor: '#007AFF',
+      Icon: Shield,
+      prefix: '',
+    },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Header & Segment Controls */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+
+      {/* ── Header & Segment ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <h2 className="text-cat" style={{ fontSize: 20, color: '#1C1C1E', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <BarChart3 style={{ width: 20, height: 20, color: '#007AFF' }} strokeWidth={2} />
+          <h2 className="type-title2" style={{ color: 'var(--label)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BarChart3 style={{ width: 22, height: 22, color: 'var(--blue)', flexShrink: 0 }} strokeWidth={1.8} aria-hidden="true" />
             Phân Tích Báo Cáo
           </h2>
-          <p className="text-note" style={{ fontSize: 12, marginTop: 3 }}>Báo cáo tài chính theo thời gian chọn</p>
+          <p className="type-subhead" style={{ color: 'var(--label-secondary)', marginTop: 2 }}>
+            Báo cáo tài chính theo thời gian chọn
+          </p>
         </div>
 
-        <div className="segment-track">
-          {(['daily', 'weekly', 'monthly'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTimeframe(t)}
-              className={`segment-btn ${timeframe === t ? 'active' : ''}`}
-            >
-              {t === 'daily' ? 'Theo Ngày' : t === 'weekly' ? 'Theo Tuần' : 'Theo Tháng'}
-            </button>
-          ))}
+        {/* Segmented control — sliding thumb */}
+        <div style={{ position: 'relative' }}>
+          <div className="segment-track" style={{ position: 'relative' }}>
+            <div
+              className="segment-thumb"
+              style={{
+                left: `calc(${thumbIdx} * (100% / 3) + 2px)`,
+                width: 'calc(100% / 3 - 4px)',
+              }}
+            />
+            {segmentOptions.map((opt, idx) => (
+              <button
+                key={opt.value}
+                className={`segment-btn${timeframe === opt.value ? ' active' : ''}`}
+                onClick={() => { setThumbIdx(idx); setTimeframe(opt.value); }}
+                aria-pressed={timeframe === opt.value}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 3 Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
-        {[
-          { label: titles.expense, value: periodData.totalExpense, color: '#FF453A', icon: <Wallet style={{ width: 16, height: 16 }} strokeWidth={2} /> },
-          { label: titles.income, value: periodData.totalIncome, color: '#32D74B', icon: <Banknote style={{ width: 16, height: 16 }} strokeWidth={2} /> },
-          { label: 'Thặng Dư Tích Lũy', value: periodData.totalIncome - periodData.totalExpense, color: '#007AFF', icon: <Shield style={{ width: 16, height: 16 }} strokeWidth={2} /> },
-        ].map((card) => (
+      {/* ── Metric Cards — SOLID, not glass ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+        {metricCards.map((card) => (
           <div
             key={card.label}
-            className="liquid-glass animate-slide-up"
-            style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}
+            className="card-solid animate-slide-up"
+            style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span className="text-note" style={{ fontSize: 12 }}>{card.label}</span>
-              <div style={{
-                padding: 8, borderRadius: '50%',
-                background: `${card.color}18`,
-                color: card.color,
-              }}>
-                {card.icon}
+              <p className="type-caption" style={{ color: 'var(--label-secondary)' }}>{card.label}</p>
+              <div
+                style={{
+                  width: 32, height: 32,
+                  borderRadius: '50%',
+                  background: `color-mix(in srgb, ${card.hexColor} 12%, transparent)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: card.colorVar,
+                }}
+              >
+                <card.Icon style={{ width: 16, height: 16 }} strokeWidth={1.8} aria-hidden="true" />
               </div>
             </div>
-            <p className="text-amount" style={{ fontSize: 22, color: card.color }}>
-              {formatVND(card.value)}
+            <p
+              className="tabular-num"
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: '-0.40px',
+                color: card.colorVar,
+                lineHeight: 1.2,
+              }}
+            >
+              {card.prefix}{formatVND(card.value)}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+      {/* ── Charts Row — SOLID cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+
         {/* Donut Chart */}
-        <div className="apple-white-card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="text-cat" style={{ fontSize: 18, color: '#1C1C1E', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <PieIcon style={{ width: 18, height: 18, color: '#007AFF' }} strokeWidth={2} />
+        <div className="card-solid" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h3 className="type-title3" style={{ color: 'var(--label)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <PieIcon style={{ width: 18, height: 18, color: 'var(--blue)' }} strokeWidth={1.8} aria-hidden="true" />
               Tỷ Lệ Chi Tiêu
             </h3>
-            <span style={{ fontSize: 11, fontWeight: 600, background: 'rgba(0,122,255,0.1)', color: '#007AFF', padding: '3px 10px', borderRadius: 99 }}>
+            <span
+              className="type-footnote"
+              style={{
+                color: 'var(--blue)',
+                background: 'color-mix(in srgb, var(--blue) 10%, transparent)',
+                padding: '3px 10px',
+                borderRadius: 9999,
+              }}
+            >
               {timeframe === 'daily' ? 'Hôm nay' : timeframe === 'weekly' ? 'Tuần này' : 'Tháng này'}
             </span>
           </div>
+
           {periodData.pieData.length > 0 ? (
             <div style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={periodData.pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value">
-                    {periodData.pieData.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Pie
+                    data={periodData.pieData}
+                    cx="50%" cy="50%"
+                    innerRadius={60} outerRadius={90}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {periodData.pieData.map((entry: any, idx: number) => (
+                      <Cell key={`cell-${idx}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val: number) => formatVND(val)} contentStyle={glassTooltipStyle} />
-                  <Legend />
+                  <Tooltip
+                    formatter={(val: number) => [formatVND(val), 'Số tiền']}
+                    contentStyle={tooltipStyle}
+                  />
+                  <Legend
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: 12, fontFamily: 'inherit' }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-note" style={{ textAlign: 'center', padding: '56px 0', fontSize: 13 }}>
-              Chưa có chi tiêu trong khoảng thời gian này
-            </p>
+            <div className="empty-state" style={{ padding: '40px 0' }}>
+              <p className="type-subhead" style={{ color: 'var(--label-tertiary)' }}>
+                Chưa có chi tiêu trong khoảng thời gian này
+              </p>
+            </div>
           )}
         </div>
 
         {/* Budget Progress */}
-        <div className="apple-white-card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="text-cat" style={{ fontSize: 18, color: '#1C1C1E', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ShieldAlert style={{ width: 18, height: 18, color: '#FF9F0A' }} strokeWidth={2} />
+        <div className="card-solid" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h3 className="type-title3" style={{ color: 'var(--label)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ShieldAlert style={{ width: 18, height: 18, color: 'var(--orange)' }} strokeWidth={1.8} aria-hidden="true" />
               Tiến Độ Ngân Sách
             </h3>
-            <span className="text-note" style={{ fontSize: 12 }}>
+            <span className="type-footnote" style={{ color: 'var(--label-secondary)' }}>
               {timeframe === 'daily' ? 'Hạn mức Ngày' : timeframe === 'weekly' ? 'Hạn mức Tuần' : 'Hạn mức Tháng'}
             </span>
           </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 240, overflowY: 'auto' }}>
             {periodData.budgetProgress.length > 0 ? (
               periodData.budgetProgress.map((item) => (
                 <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="text-cat" style={{ fontSize: 13, color: '#1C1C1E' }}>{item.name}</span>
-                    <span className="text-note" style={{ fontSize: 12 }}>
-                      {formatVND(item.spent)} / {formatVND(item.limit)} ({item.percent}%)
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span className="type-subhead" style={{ color: 'var(--label)', fontWeight: 500 }}>{item.name}</span>
+                    <span className="type-footnote tabular-num" style={{ color: 'var(--label-secondary)', whiteSpace: 'nowrap' }}>
+                      {item.percent}%
                     </span>
                   </div>
-                  <div style={{ width: '100%', height: 6, background: '#E5E5EA', borderRadius: 9999, overflow: 'hidden' }}>
+                  {/* Track */}
+                  <div
+                    style={{ width: '100%', height: 6, background: 'var(--fill-quaternary)', borderRadius: 9999, overflow: 'hidden' }}
+                    role="progressbar"
+                    aria-valuenow={item.percent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${item.name}: ${item.percent}%`}
+                  >
                     <div
                       style={{
                         height: '100%',
                         width: `${item.percent}%`,
                         borderRadius: 9999,
-                        background: item.percent >= 90 ? '#FF453A' : item.percent >= 70 ? '#FF9F0A' : '#32D74B',
-                        transition: 'width 0.5s ease',
+                        background: item.percent >= 90
+                          ? 'var(--red)'
+                          : item.percent >= 70
+                          ? 'var(--orange)'
+                          : 'var(--green)',
+                        transition: 'width 500ms cubic-bezier(0.32,0.72,0,1)',
                       }}
                     />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="type-footnote tabular-num" style={{ color: 'var(--label-secondary)' }}>
+                      {formatVND(item.spent)}
+                    </span>
+                    <span className="type-footnote tabular-num" style={{ color: 'var(--label-tertiary)' }}>
+                      / {formatVND(item.limit)}
+                    </span>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-note" style={{ textAlign: 'center', padding: '56px 0', fontSize: 13 }}>
-                Chưa cài đặt hạn mức ngân sách
-              </p>
+              <div className="empty-state" style={{ padding: '40px 0' }}>
+                <p className="type-subhead" style={{ color: 'var(--label-tertiary)' }}>
+                  Chưa cài đặt hạn mức ngân sách
+                </p>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Weekly Bar Chart */}
+      {/* ── Weekly Bar Chart ── */}
       {timeframe === 'weekly' && (
-        <div className="apple-white-card animate-fade-in" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 className="text-cat" style={{ fontSize: 18, color: '#1C1C1E' }}>So Sánh Thu / Chi Theo Tuần</h3>
+        <div className="card-solid animate-fade-in" style={{ padding: 20 }}>
+          <h3 className="type-title3" style={{ color: 'var(--label)', marginBottom: 16 }}>
+            So Sánh Thu / Chi Theo Tuần
+          </h3>
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyBarData}>
-                <XAxis dataKey="day" stroke="#86868B" style={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(v) => formatShortVND(v)} stroke="#86868B" style={{ fontSize: 12 }} />
-                <Tooltip formatter={(val: number) => formatVND(val)} contentStyle={glassTooltipStyle} />
-                <Legend />
-                <Bar dataKey="expense" name="Chi tiêu" fill="#FF453A" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="income" name="Thu nhập" fill="#32D74B" radius={[6, 6, 0, 0]} />
+              <BarChart data={weeklyBarData} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                <XAxis dataKey="day" stroke="var(--label-tertiary)" style={{ fontSize: 12, fontFamily: 'inherit' }} />
+                <YAxis tickFormatter={formatShortVND} stroke="var(--label-tertiary)" style={{ fontSize: 12, fontFamily: 'inherit' }} />
+                <Tooltip formatter={(val: number) => [formatVND(val)]} contentStyle={tooltipStyle} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, fontFamily: 'inherit' }} />
+                <Bar dataKey="expense" name="Chi tiêu" fill="#FF3B30" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="income"  name="Thu nhập" fill="#34C759" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       )}
 
-      {/* Daily Area Chart */}
+      {/* ── Daily Area Chart ── */}
       {timeframe === 'daily' && (
-        <div className="apple-white-card animate-fade-in" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 className="text-cat" style={{ fontSize: 18, color: '#1C1C1E' }}>Phân Bổ Chi Tiêu Theo Giờ</h3>
+        <div className="card-solid animate-fade-in" style={{ padding: 20 }}>
+          <h3 className="type-title3" style={{ color: 'var(--label)', marginBottom: 16 }}>
+            Phân Bổ Chi Tiêu Theo Giờ
+          </h3>
           <div style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyHourlyData}>
-                <XAxis dataKey="hour" stroke="#86868B" style={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => formatShortVND(v)} stroke="#86868B" style={{ fontSize: 11 }} />
-                <Tooltip formatter={(val: number) => formatVND(val)} contentStyle={glassTooltipStyle} />
-                <Area type="monotone" dataKey="amount" name="Số tiền chi" stroke="#007AFF" fill="#007AFF" fillOpacity={0.12} strokeWidth={2} />
+              <AreaChart data={dailyHourlyData} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                <XAxis dataKey="hour" stroke="var(--label-tertiary)" style={{ fontSize: 11, fontFamily: 'inherit' }} />
+                <YAxis tickFormatter={formatShortVND} stroke="var(--label-tertiary)" style={{ fontSize: 11, fontFamily: 'inherit' }} />
+                <Tooltip formatter={(val: number) => [formatVND(val), 'Chi tiêu']} contentStyle={tooltipStyle} />
+                <Area
+                  type="monotone"
+                  dataKey="amount"
+                  name="Số tiền chi"
+                  stroke="#007AFF"
+                  fill="#007AFF"
+                  fillOpacity={0.10}
+                  strokeWidth={2}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
