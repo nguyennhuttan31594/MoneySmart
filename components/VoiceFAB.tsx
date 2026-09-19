@@ -191,26 +191,30 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
           />
 
           {/* Action buttons wrapper */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, zIndex: 2, alignSelf: isFocused ? 'flex-end' : 'center' }}>
-            {/* Mic button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, zIndex: 2, alignSelf: isFocused ? 'flex-end' : 'center' }}>
+            {/* Mic button — 44px circle, icon 22px */}
             <button
               type="button"
               onClick={toggleListen}
               disabled={isProcessing}
               aria-label={isListening ? 'Dừng ghi âm' : 'Bắt đầu ghi âm'}
-              className="fab-btn"
+              className="fab-btn press-scale"
               style={{
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 borderRadius: '50%',
-                background: isListening ? '#FF3B30' : 'rgba(118, 118, 128, 0.12)',
-                color: isListening ? '#FFFFFF' : 'rgba(60, 60, 67, 0.60)',
+                background: isListening
+                  ? 'linear-gradient(135deg, #FF3B30 0%, #E02B20 100%)'
+                  : 'rgba(0, 122, 255, 0.14)',
+                color: isListening ? '#FFFFFF' : '#007AFF',
                 position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: 'none',
                 cursor: 'pointer',
+                boxShadow: isListening ? '0 4px 14px rgba(255,59,48,0.40)' : '0 2px 8px rgba(0,122,255,0.15)',
+                flexShrink: 0,
               }}
             >
               {/* Ripple rings when recording */}
@@ -222,37 +226,38 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
                 </>
               )}
               {isListening
-                ? <MicOff style={{ width: 18, height: 18 }} aria-hidden="true" />
-                : <Mic style={{ width: 18, height: 18 }} strokeWidth={2} aria-hidden="true" />
+                ? <MicOff style={{ width: 22, height: 22 }} strokeWidth={2.4} aria-hidden="true" />
+                : <Mic style={{ width: 22, height: 22 }} strokeWidth={2.4} aria-hidden="true" />
               }
             </button>
 
-            {/* Send button */}
+            {/* Send button — 44px circle, icon 22px */}
             <button
               type="submit"
               disabled={!hasContent || isProcessing}
               aria-label="Gửi giao dịch"
               className="fab-btn press-scale"
               style={{
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 borderRadius: '50%',
-                background: '#007AFF',
+                background: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
                 color: '#FFFFFF',
-                opacity: hasContent && !isProcessing ? 1 : 0.35,
-                transform: hasContent && !isProcessing ? 'scale(1)' : 'scale(0.92)',
-                transition: 'opacity 280ms cubic-bezier(0.32,0.72,0,1), transform 280ms cubic-bezier(0.32,0.72,0,1)',
-                boxShadow: hasContent ? '0 4px 12px rgba(0,122,255,0.35)' : 'none',
+                opacity: hasContent && !isProcessing ? 1 : 0.45,
+                transform: hasContent && !isProcessing ? 'scale(1)' : 'scale(0.94)',
+                transition: 'all 280ms cubic-bezier(0.32,0.72,0,1)',
+                boxShadow: hasContent ? '0 4px 16px rgba(0,122,255,0.45)' : 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: 'none',
                 cursor: hasContent && !isProcessing ? 'pointer' : 'default',
+                flexShrink: 0,
               }}
             >
               {isProcessing
-                ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} aria-hidden="true" />
-                : <SendHorizonal style={{ width: 18, height: 18 }} aria-hidden="true" />
+                ? <Loader2 style={{ width: 22, height: 22, animation: 'spin 1s linear infinite' }} aria-hidden="true" />
+                : <SendHorizonal style={{ width: 22, height: 22 }} strokeWidth={2.2} aria-hidden="true" />
               }
             </button>
           </div>
