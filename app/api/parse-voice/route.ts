@@ -34,7 +34,9 @@ const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
   'Sức khỏe': [
     'sức khỏe', 'suc khoe', 'y tế', 'y te', 'thuốc', 'thuoc', 'tiền thuốc', 'nhà thuốc', 'dược phẩm',
     'khám bệnh', 'kham benh', 'bệnh viện', 'benh vien', 'nha khoa', 'răng', 'mắt', 'kính cận',
-    'bảo hiểm y tế', 'bác sĩ', 'bac si', 'thực phẩm chức năng', 'vitamin', 'gym', 'yoga', 'thể thao'
+    'bảo hiểm y tế', 'bác sĩ', 'bac si', 'thực phẩm chức năng', 'vitamin', 'gym', 'yoga', 'thể thao',
+    'cắt tóc', 'cat toc', 'hớt tóc', 'hot toc', 'gội đầu', 'goi dau', 'spa', 'làm đẹp', 'lam dep',
+    'làm tóc', 'lam toc', 'nail', 'uốn tóc', 'nhuộm tóc'
   ],
   'Con cái': [
     'con cái', 'con cai', 'tiền học', 'tien hoc', 'học phí', 'hoc phi', 'bỉm', 'bim', 'sữa', 'sua',
@@ -93,8 +95,10 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     let rawResult: any = null;
 
-    // Fetch User Preference Memory Rules from Supabase category_rules table
+    // Fetch categories & User Preference Memory Rules from Supabase
     let customRules: any[] = [];
+    let activeCategories: any[] = categories || [];
+
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: rulesData } = await supabase.from('category_rules').select('*');
@@ -105,12 +109,23 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.warn('Could not fetch custom category_rules:', err);
       }
+
+      if (activeCategories.length === 0) {
+        try {
+          const { data: dbCats } = await supabase.from('categories').select('*');
+          if (dbCats && dbCats.length > 0) {
+            activeCategories = dbCats;
+          }
+        } catch (err) {
+          console.warn('Could not fetch categories from Supabase:', err);
+        }
+      }
     }
 
     // Build category context string from user categories
-    const categoryNamesList = categories && categories.length > 0
-      ? categories.filter((c: any) => c.parent_id !== null).map((c: any) => c.name)
-      : ['Ăn uống', 'Di chuyển', 'Hóa đơn & Điện nước', 'Mua sắm/Giải trí', 'Sức khỏe', 'Con cái', 'Trả nợ', 'Thu nhập'];
+    const categoryNamesList = activeCategories.length > 0
+      ? activeCategories.filter((c: any) => c.parent_id !== null).map((c: any) => c.name)
+      : ['Ăn uống', 'Di chuyển', 'Hóa đơn & Điện nước', 'Mua sắm', 'Sức khỏe & Y tế', 'Giải trí', 'Con cái', 'Thu nhập'];
 
     // Call Gemini AI if key is configured
     if (apiKey) {
@@ -153,7 +168,7 @@ QUY TẮC BẮT BUỘC PHÂN TÍCH:
    - "Cơm", "phở", "bún", "bánh mì", "cà phê", "trà sữa", "ăn sáng", "ăn trưa", "ăn tối", "đi chợ", "siêu thị" -> CHẮC CHẮN LÀ "Ăn uống".
    - "Tiền điện", "tiền nước", "internet", "wifi", "tiền nhà", "tiền phòng", "nạp thẻ điện thoại" -> "Hóa đơn & Điện nước".
    - "Mua quần áo", "mỹ phẩm", "Shopee", "du lịch", "xem phim", "chơi game" -> "Mua sắm/Giải trí".
-   - "Mua thuốc", "khám bệnh", "bác sĩ", "nha khoa", "bệnh viện" -> "Sức khỏe".
+   - "Mua thuốc", "khám bệnh", "bác sĩ", "nha khoa", "bệnh viện", "cắt tóc", "hớt tóc", "gội đầu", "spa", "làm đẹp" -> "Sức khỏe".
    - "Tiền học", "học phí", "sữa con", "bỉm", "đồ chơi" -> "Con cái".
    - "Trả nợ", "trả góp", "vay nợ", "tín dụng" -> "Trả nợ".
    - "Lương", "thưởng", "lì xì", "bán hàng", "làm thêm" -> "Thu nhập".
@@ -189,7 +204,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc:
     }
 
     // Normalize category mapping against Frontend category list & User Memory Preferences
-    const finalParsedData = normalizeCategoryResult(rawResult, text, categories, todayDateStr, customRules);
+    const finalParsedData = normalizeCategoryResult(rawResult, text, activeCategories, todayDateStr, customRules);
     return NextResponse.json(finalParsedData);
 
   } catch (error: any) {
@@ -227,7 +242,9 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
       const targetCat = availableCats.find(
         (c: any) =>
           c.id === matchedRule.category_id ||
-          c.name.toLowerCase() === matchedRule.category_name.toLowerCase()
+          c.name.toLowerCase() === matchedRule.category_name.toLowerCase() ||
+          c.name.toLowerCase().includes(matchedRule.category_name.toLowerCase()) ||
+          matchedRule.category_name.toLowerCase().includes(c.name.toLowerCase())
       );
       if (targetCat) {
         matchedCat = targetCat;
@@ -236,8 +253,8 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
     }
   }
 
-  // 1. Exact match by category name or category id
-  if (catInputLower) {
+  // 1. Exact match by category name or category id (ONLY IF memory rule was not matched!)
+  if (!matchedCat && catInputLower) {
     matchedCat = availableCats.find(
       (c: any) =>
         c.name.toLowerCase() === catInputLower ||
