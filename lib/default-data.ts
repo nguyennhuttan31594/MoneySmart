@@ -18,50 +18,5 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-c-income', parent_id: 'cat-p-income', name: 'Thu nhập', type: 'income', icon: 'Wallet', color: '#22C55E' },
 ];
 
-export const INITIAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: 'tx-1',
-    category_id: 'cat-c-food',
-    amount: 35000,
-    type: 'expense',
-    description: 'Ăn sáng phở bò',
-    raw_text: 'Ăn sáng phở bò 35k',
-    transaction_date: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'tx-2',
-    category_id: 'cat-c-food',
-    amount: 55000,
-    type: 'expense',
-    description: 'Cơm trưa văn phòng',
-    raw_text: 'Ăn trưa 55k',
-    transaction_date: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'tx-3',
-    category_id: 'cat-c-transport',
-    amount: 100000,
-    type: 'expense',
-    description: 'Đổ xăng xe máy',
-    raw_text: 'Đổ xăng 100k',
-    transaction_date: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'tx-4',
-    category_id: 'cat-c-bills',
-    amount: 450000,
-    type: 'expense',
-    description: 'Trả tiền điện tháng này',
-    raw_text: 'Trả tiền điện 450k',
-    transaction_date: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'tx-5',
-    category_id: 'cat-c-income',
-    amount: 18000000,
-    type: 'income',
-    description: 'Nhận lương tháng 9',
-    raw_text: 'Nhận lương 18 củ',
-    transaction_date: new Date(Date.now() - 72 * 3600 * 1000).toISOString(),
-  },
-];
+export const INITIAL_TRANSACTIONS: Transaction[] = [];
+

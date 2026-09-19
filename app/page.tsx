@@ -69,25 +69,7 @@ export default function Home() {
   // Load initial data from LocalStorage & Supabase
   useEffect(() => {
     async function loadData() {
-      // 1. Read cached data from LocalStorage first for instant render
-      let localCats: Category[] = DEFAULT_CATEGORIES;
-      let localTxs: Transaction[] = [];
-
-      try {
-        const rawLocalCats = localStorage.getItem('moneysmartflow_categories') || localStorage.getItem('moneyflow_categories');
-        const rawLocalTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
-        if (rawLocalCats) localCats = JSON.parse(rawLocalCats);
-        if (rawLocalTxs) localTxs = JSON.parse(rawLocalTxs);
-      } catch (err) {
-        console.error('LocalStorage read error:', err);
-      }
-
-      setCategories(localCats);
-      if (localTxs.length > 0) {
-        setTransactions(localTxs);
-      }
-
-      // 2. Fetch from Supabase as absolute source of truth
+      // 1. Fetch from Supabase as absolute source of truth
       if (isSupabaseConfigured && supabase) {
         try {
           // Fetch categories
@@ -104,7 +86,7 @@ export default function Home() {
             if (seedErr) console.error('[Supabase Seed Categories Error]', seedErr);
           }
 
-          // Fetch transactions
+          // Fetch transactions from Supabase Cloud
           const { data: txData, error: txErr } = await supabase
             .from('transactions')
             .select('*')
@@ -114,43 +96,21 @@ export default function Home() {
           if (txErr) console.error('[Supabase Fetch Transactions Error]', txErr);
 
           if (!txErr && txData) {
-            let finalTxs = [...txData];
-
-            // Filter out old mock items tx-1..tx-5 from local cache
-            const realLocalUnsynced = localTxs.filter(
-              (lt) => lt.id.startsWith('tx-') && !['tx-1', 'tx-2', 'tx-3', 'tx-4', 'tx-5'].includes(lt.id)
-            );
-
-            if (realLocalUnsynced.length > 0) {
-              console.log('[Supabase Uploading Unsynced Local Txs]:', realLocalUnsynced);
-              const { data: uploaded, error: uploadErr } = await supabase.from('transactions').insert(
-                realLocalUnsynced.map((t) => ({
-                  category_id: t.category_id,
-                  amount: t.amount,
-                  type: t.type,
-                  description: t.description,
-                  raw_text: t.raw_text || t.description,
-                  transaction_date: t.transaction_date,
-                }))
-              ).select();
-
-              console.log('[Supabase Upload Unsynced Result] Data:', uploaded, 'Error:', uploadErr);
-              if (uploadErr) console.error('[Supabase Upload Unsynced Error]', uploadErr);
-
-              if (uploaded && uploaded.length > 0) {
-                const remoteIds = new Set(txData.map((t) => t.id));
-                const newUploaded = uploaded.filter((u) => !remoteIds.has(u.id));
-                finalTxs = [...newUploaded, ...txData].sort(
-                  (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
-                );
-              }
-            }
-
-            setTransactions(finalTxs);
-            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(finalTxs));
+            setTransactions(txData);
+            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(txData));
           }
         } catch (err) {
           console.error('Supabase load exception:', err);
+        }
+      } else {
+        // Fallback for offline without Supabase
+        try {
+          const rawLocalCats = localStorage.getItem('moneysmartflow_categories');
+          const rawLocalTxs = localStorage.getItem('moneysmartflow_transactions');
+          if (rawLocalCats) setCategories(JSON.parse(rawLocalCats));
+          if (rawLocalTxs) setTransactions(JSON.parse(rawLocalTxs));
+        } catch (err) {
+          console.error('LocalStorage read error:', err);
         }
       }
 
