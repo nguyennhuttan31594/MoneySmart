@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Category, Transaction, ParsedVoiceResult } from '@/lib/types';
+import { Category, Transaction, ParsedVoiceResult, VoiceRule } from '@/lib/types';
 import { DEFAULT_CATEGORIES, INITIAL_TRANSACTIONS } from '@/lib/default-data';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -17,6 +17,7 @@ import { CurrencyDollar } from '@phosphor-icons/react';
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [voiceRules, setVoiceRules] = useState<VoiceRule[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'transactions' | 'reports' | 'categories'>('transactions');
@@ -107,11 +108,21 @@ export default function Home() {
         try {
           const rawLocalCats = localStorage.getItem('moneysmartflow_categories');
           const rawLocalTxs = localStorage.getItem('moneysmartflow_transactions');
+          const rawLocalRules = localStorage.getItem('moneysmartflow_voice_rules');
           if (rawLocalCats) setCategories(JSON.parse(rawLocalCats));
           if (rawLocalTxs) setTransactions(JSON.parse(rawLocalTxs));
+          if (rawLocalRules) setVoiceRules(JSON.parse(rawLocalRules));
         } catch (err) {
           console.error('LocalStorage read error:', err);
         }
+      }
+
+      // Also read voice rules from local storage
+      try {
+        const rawLocalRules = localStorage.getItem('moneysmartflow_voice_rules');
+        if (rawLocalRules) setVoiceRules(JSON.parse(rawLocalRules));
+      } catch (err) {
+        console.error(err);
       }
 
       setIsLoaded(true);
@@ -132,6 +143,46 @@ export default function Home() {
       localStorage.setItem('moneysmartflow_transactions', JSON.stringify(transactions));
     }
   }, [transactions, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('moneysmartflow_voice_rules', JSON.stringify(voiceRules));
+    }
+  }, [voiceRules, isLoaded]);
+
+  // Voice rules handlers
+  const handleAddVoiceRule = (ruleData: Omit<VoiceRule, 'id'>) => {
+    const newRule: VoiceRule = {
+      ...ruleData,
+      id: `vrule-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    setVoiceRules((prev) => {
+      const updated = [newRule, ...prev];
+      localStorage.setItem('moneysmartflow_voice_rules', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('category_rules').upsert([
+        {
+          keyword: newRule.misspoken_phrase,
+          category_name: newRule.correct_phrase,
+          category_id: newRule.category_id || null,
+        }
+      ]).then(({ error }) => {
+        if (error) console.warn('Supabase voice rule sync warning:', error);
+      });
+    }
+  };
+
+  const handleDeleteVoiceRule = (id: string) => {
+    setVoiceRules((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      localStorage.setItem('moneysmartflow_voice_rules', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // Supabase Realtime Subscription for instant cross-device sync (Phone <-> PC)
   useEffect(() => {
@@ -500,6 +551,9 @@ export default function Home() {
             onAddCategory={handleAddCategory}
             onUpdateCategory={handleUpdateCategory}
             onDeleteCategory={handleDeleteCategory}
+            voiceRules={voiceRules}
+            onAddVoiceRule={handleAddVoiceRule}
+            onDeleteVoiceRule={handleDeleteVoiceRule}
           />
         )}
       </div>

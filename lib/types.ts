@@ -36,3 +36,12 @@ export interface ParsedVoiceResult {
 }
 
 export type AnalyticsTimeframe = 'daily' | 'weekly' | 'monthly';
+
+export interface VoiceRule {
+  id: string;
+  misspoken_phrase: string;
+  correct_phrase: string;
+  category_id?: string | null;
+  category_name?: string | null;
+  created_at?: string;
+}

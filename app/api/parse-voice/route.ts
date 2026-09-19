@@ -102,7 +102,7 @@ function formatYMD(dateInput?: Date | string | null): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { text: rawText, currentDate, categories } = await req.json();
+    const { text: rawText, currentDate, categories, voiceRules } = await req.json();
 
     if (!rawText || typeof rawText !== 'string') {
       return NextResponse.json(
@@ -111,8 +111,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Pre-clean Chrome STT Vietnamese phonetic anomalies ("100 hóa xanh" -> "Bách Hóa Xanh")
-    const text = cleanVietnameseSTTAnomalies(rawText);
+    // 1. Pre-clean Chrome STT Vietnamese phonetic anomalies ("100 hóa xanh" -> "Bách Hóa Xanh")
+    let text = cleanVietnameseSTTAnomalies(rawText);
+
+    // 2. Apply Custom User Voice Rules trained by user in Categories Tab
+    if (voiceRules && Array.isArray(voiceRules)) {
+      voiceRules.forEach((rule: any) => {
+        if (rule.misspoken_phrase && rule.correct_phrase) {
+          const kw = rule.misspoken_phrase.trim();
+          const rep = rule.correct_phrase.trim();
+          if (kw && rep) {
+            const regex = new RegExp(kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+            text = text.replace(regex, rep);
+          }
+        }
+      });
+    }
 
     const todayDateStr = formatYMD(currentDate);
     const apiKey = process.env.GEMINI_API_KEY?.trim();

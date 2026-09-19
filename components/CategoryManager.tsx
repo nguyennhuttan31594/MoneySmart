@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Category, TransactionType } from '@/lib/types';
-import { Plus, Trash2, FolderPlus, DollarSign, Layers, Pencil, Check, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Category, TransactionType, VoiceRule } from '@/lib/types';
+import { Plus, Trash2, FolderPlus, DollarSign, Layers, Pencil, Check, X, Brain, Mic, Sparkles } from 'lucide-react';
 import { CategoryIcon } from '@/components/CategoryIcon3D';
 
 interface CategoryManagerProps {
@@ -10,6 +10,9 @@ interface CategoryManagerProps {
   onAddCategory: (newCategory: Omit<Category, 'id'>) => void;
   onUpdateCategory: (updatedCategory: Category) => void;
   onDeleteCategory: (id: string) => void;
+  voiceRules: VoiceRule[];
+  onAddVoiceRule: (rule: Omit<VoiceRule, 'id'>) => void;
+  onDeleteVoiceRule: (id: string) => void;
 }
 
 const vibrate = (p: number | number[]) => {
@@ -21,21 +24,31 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
+  voiceRules,
+  onAddVoiceRule,
+  onDeleteVoiceRule,
 }) => {
   const [activeTab, setActiveTab] = useState<TransactionType>('expense');
   const [isAdding, setIsAdding] = useState(false);
   const [thumbIdx, setThumbIdx] = useState(0);
 
-  // Add state
+  // Add category state
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   const [color, setColor] = useState('#007AFF');
   const [budgetLimit, setBudgetLimit] = useState<number | ''>('');
 
-  // Edit state
+  // Edit category state
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editBudgetLimit, setEditBudgetLimit] = useState<number | ''>('');
+
+  // Voice Trainer state
+  const [misspokenInput, setMisspokenInput] = useState('');
+  const [correctInput, setCorrectInput] = useState('');
+  const [selectedCatId, setSelectedCatId] = useState<string>('');
+  const [isRecordingMisspoken, setIsRecordingMisspoken] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const parentCategories = categories.filter((c) => c.type === activeTab && !c.parent_id);
 
@@ -518,6 +531,159 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* ── STT & Voice Trainer Section ── */}
+      <div className="card-solid" style={{ padding: 20, marginTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              background: 'color-mix(in srgb, var(--purple) 15%, transparent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Brain style={{ width: 22, height: 22, color: 'var(--purple)' }} strokeWidth={2} />
+          </div>
+          <div>
+            <h3 className="type-title3" style={{ color: 'var(--label)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              Huấn Luyện Giọng Nói AI
+              <Sparkles style={{ width: 16, height: 16, color: 'var(--yellow)' }} />
+            </h3>
+            <p className="type-footnote" style={{ color: 'var(--label-secondary)', marginTop: 1 }}>
+              Dạy AI tự động sửa các từ Chrome dịch nhầm thành từ đúng theo ý bạn
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveVoiceRule} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+          <div>
+            <label className="type-caption" style={{ color: 'var(--label-secondary)', display: 'block', marginBottom: 4 }}>
+              1. Từ Chrome hay nghe nhầm (Bấm 🎤 để đọc thử hoặc gõ tay) *
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={misspokenInput}
+                onChange={(e) => setMisspokenInput(e.target.value)}
+                placeholder="VD: 100 multiple xanh (hoặc bấm 🎤)"
+                required
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={recordMisspokenVoice}
+                className="press-scale"
+                title="Đọc từ nghe nhầm"
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  background: isRecordingMisspoken ? '#FF3B30' : 'var(--purple)',
+                  color: '#fff',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(175,82,222,0.3)',
+                }}
+              >
+                <Mic style={{ width: 18, height: 18 }} />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="type-caption" style={{ color: 'var(--label-secondary)', display: 'block', marginBottom: 4 }}>
+              2. Từ ĐÚNG bạn muốn ứng dụng quy đổi *
+            </label>
+            <input
+              type="text"
+              value={correctInput}
+              onChange={(e) => setCorrectInput(e.target.value)}
+              placeholder="VD: Bách Hóa Xanh (hoặc mua kính 140k)"
+              required
+              style={inputStyle}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="press-scale"
+            style={{
+              alignSelf: 'flex-end',
+              padding: '10px 20px',
+              borderRadius: 12,
+              background: 'var(--purple)',
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 14,
+              border: 'none',
+              boxShadow: '0 4px 14px rgba(175, 82, 222, 0.35)',
+              cursor: 'pointer',
+            }}
+          >
+            + Lưu Quy Tắc Dạy AI
+          </button>
+        </form>
+
+        {/* Saved voice rules list */}
+        {voiceRules && voiceRules.length > 0 && (
+          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p className="type-caption" style={{ color: 'var(--label-secondary)' }}>
+              Danh sách từ đã huấn luyện ({voiceRules.length} từ)
+            </p>
+            {voiceRules.map((rule) => (
+              <div
+                key={rule.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'var(--fill-quaternary)',
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                  <span className="type-footnote" style={{ color: '#FF3B30', textDecoration: 'line-through', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                    "{rule.misspoken_phrase}"
+                  </span>
+                  <span style={{ color: 'var(--label-tertiary)', flexShrink: 0 }}>➔</span>
+                  <span className="type-subhead" style={{ color: 'var(--green)', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                    "{rule.correct_phrase}"
+                  </span>
+                </div>
+                <button
+                  onClick={() => { vibrate([10, 40, 10]); onDeleteVoiceRule(rule.id); }}
+                  aria-label="Xóa quy tắc huấn luyện"
+                  className="press-scale"
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--label-tertiary)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Trash2 style={{ width: 14, height: 14 }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
