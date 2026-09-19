@@ -148,18 +148,32 @@ Danh sách các hạng mục khả dụng trong ứng dụng: [${categoryNamesLi
 
 QUY TẮC BẮT BUỘC PHÂN TÍCH:
 1. Xác định số tiền (amount): Trích xuất con số tiền tệ chính xác theo đơn vị VND.
-   - Các số tự nhiên đơn lẻ/ngắn như 30, 50, 70, 100, 35, 500 khi đứng trong ngữ cảnh chi tiêu đều HIỂU NGẦM tương ứng với đơn vị NGHÌN ĐỒNG (x 1.000):
-     + 70 -> 70000 (Ví dụ: "đổ xăng 70" -> 70000 VND)
-     + 30 -> 30000
-     + 50 -> 50000
-     + 100 -> 100000
-     + 35 -> 35000
-     + 500 -> 500000
+   - Cách nói hàng TRĂM NGHÌN NÓI TẮT KHÔNG ĐƠN VỊ:
+     + "một trăm tám" / "trăm tám" -> 180000 VND (180k)
+     + "một trăm tư" / "trăm tư" -> 140000 VND (140k)
+     + "một trăm mốt" / "trăm mốt" -> 110000 VND (110k)
+     + "một trăm hai" / "trăm hai" -> 120000 VND (120k)
+     + "một trăm ba" / "trăm ba" -> 130000 VND (130k)
+     + "một trăm rưỡi" / "trăm rưỡi" -> 150000 VND (150k)
+     + "hai trăm rưỡi" -> 250000 VND (250k)
+     + "một trăm sáu" / "trăm sáu" -> 160000 VND
+     + "một trăm bảy" / "trăm bảy" -> 170000 VND
+     + "một trăm chín" / "trăm chín" -> 190000 VND
+     + "một trăm lẻ tám" / "trăm linh tám" -> 108000 VND
+     + "một trăm lẻ tư" / "trăm linh tư" -> 104000 VND
+   - Cách nói hàng TRIỆU NÓI TẮT:
+     + "một triệu tám" / "1tr8" -> 1800000 VND (1.8 triệu)
+     + "hai triệu rưỡi" / "2tr5" -> 2500000 VND (2.5 triệu)
+     + "ba triệu tư" / "3tr4" -> 3400000 VND (3.4 triệu)
+   - Các số tự nhiên đơn lẻ/ngắn như 30, 50, 70, 100, 140, 180, 500 khi đứng trong ngữ cảnh chi tiêu đều HIỂU NGẦM đơn vị NGHÌN ĐỒNG (x 1.000):
+     + 70 -> 70000
+     + 180 -> 180000
+     + 140 -> 140000
+     + 50 -> 50000, 30 -> 30000, 500 -> 500000
    - Định dạng khác:
      + 25k / 25 ngàn / 25 nghìn -> 25000
      + 1.5 triệu / 1.5 củ / 1.5tr -> 1500000
-     + 15 củ / 15 triệu -> 15000000
-   - Số nguyên lớn >= 1000 (vd: 50000, 70000, 200000, 1500000) giữ nguyên giá trị VND.
+   - Số nguyên lớn >= 1000 (vd: 50000, 70000, 180000, 1400000) giữ nguyên giá trị VND.
 
 2. Phân loại type: 'expense' (chi tiêu/mua/trả tiền/đổ xăng/gửi xe) hoặc 'income' (lương/thưởng/nhận tiền/được cho).
 
@@ -329,95 +343,72 @@ function parseVnAmount(val: any, rawText: string): number {
   }
 
   const text = (rawText || '').toLowerCase().trim();
+  if (!text) return 0;
 
-  // Word-to-number map
-  const wordMap: { [key: string]: number } = {
+  const wordToDigit: { [key: string]: number } = {
     'không': 0, 'khong': 0,
     'một': 1, 'mot': 1, 'mốt': 1,
     'hai': 2,
     'ba': 3,
     'bốn': 4, 'bon': 4, 'tư': 4, 'tu': 4,
-    'năm': 5, 'nam': 5, 'lăm': 5, 'lam': 5, 'nhăm': 5,
+    'năm': 5, 'nam': 5, 'lăm': 5, 'lam': 5, 'nhăm': 5, 'rưỡi': 5, 'ruoi': 5,
     'sáu': 6, 'sau': 6,
     'bảy': 7, 'bay': 7,
     'tám': 8, 'tam': 8,
     'chín': 9, 'chin': 9,
-    'mười': 10, 'muoi': 10, 'chục': 10, 'mươi': 10,
-    'trăm': 100, 'tram': 100,
-    'nửa': 0.5, 'nua': 0.5,
   };
 
-  function parseWordsToNumber(phrase: string): number {
-    if (!phrase) return 0;
-    const clean = phrase.trim();
-    if (/^\d+[\.,]?\d*$/.test(clean)) return parseFloat(clean.replace(',', '.'));
+  const numWordsPattern = 'một|mot|mốt|hai|ba|bốn|bon|tư|tu|năm|nam|lăm|lam|nhăm|rưỡi|ruoi|sáu|sau|bảy|bay|tám|tam|chín|chin';
 
-    const tokens = clean.split(/\s+/);
-    let total = 0;
-    let currentVal = 0;
+  // Pattern A: Millions spoken ("một triệu tám", "hai triệu rưỡi", "ba triệu tư", "1tr8", "2.5tr")
+  const millionRegex = new RegExp(`(?:^|\\s)(\\d+[\\.,]?\\d*|${numWordsPattern})\\s*(?:củ|cu|triệu|trieu|tr(?![ăa]m))(?:\\s*|$)(?:và\\s+)?(lẻ|linh)?\\s*(\\d+|${numWordsPattern})?`, 'i');
+  const millionMatch = text.match(millionRegex);
 
-    for (let i = 0; i < tokens.length; i++) {
-      const tok = tokens[i];
-      const v = wordMap[tok];
-      if (v !== undefined) {
-        if (v === 100) {
-          total += (currentVal || 1) * 100;
-          currentVal = 0;
-        } else if (v === 10) {
-          currentVal = (currentVal || 1) * 10;
-        } else {
-          currentVal += v;
-        }
+  if (millionMatch) {
+    const headStr = millionMatch[1];
+    const isLe = !!millionMatch[2];
+    const tailStr = millionMatch[3];
+
+    const head = wordToDigit[headStr] !== undefined ? wordToDigit[headStr] : parseFloat(headStr.replace(',', '.'));
+    if (!isNaN(head)) {
+      if (!tailStr) return Math.round(head * 1000000);
+      const tail = wordToDigit[tailStr] !== undefined ? wordToDigit[tailStr] : parseFloat(tailStr);
+      if (!isNaN(tail)) {
+        if (isLe) return Math.round(head * 1000000 + tail * 1000);
+        return tail < 10 ? Math.round(head * 1000000 + tail * 100000) : Math.round(head * 1000000 + tail * 1000);
       }
     }
-    return total + currentVal;
   }
 
-  // 2. Compound Million + Thousand match (e.g. 'khám bệnh hai triệu chín trăm bảy mươi lăm ngàn', '1tr755k')
-  const compoundMatch = text.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(?:củ|cu|triệu|trieu|tr)\s*(?:và|va)?\s*(.+?)(?:ngàn|ngan|nghìn|nghin|k)?$/i);
+  // Pattern B: Hundreds spoken ("một trăm tám", "một trăm tư", "trăm tư", "trăm tám", "trăm rưỡi", "hai trăm rưỡi", "100k")
+  const hundredRegex = new RegExp(`(?:^|\\s)(\\d+|${numWordsPattern})?\\s*(?:trăm|tram)(?:\\s*|$)(lẻ|linh)?\\s*(\\d+|${numWordsPattern})?`, 'i');
+  const hundredMatch = text.match(hundredRegex);
 
-  if (compoundMatch) {
-    const millionVal = wordMap[compoundMatch[1].toLowerCase()] || parseFloat(compoundMatch[1].replace(',', '.'));
-    const thousandText = compoundMatch[2].trim();
+  if (hundredMatch) {
+    const headStr = hundredMatch[1];
+    const isLe = !!hundredMatch[2];
+    const tailStr = hundredMatch[3];
 
-    if (!isNaN(millionVal)) {
-      let thousandVal = 0;
-      if (thousandText) {
-        const thousandDigitsMatch = thousandText.match(/^(\d+[\.,]?\d*)/);
-        if (thousandDigitsMatch) {
-          thousandVal = parseFloat(thousandDigitsMatch[1].replace(',', '.'));
-        } else {
-          thousandVal = parseWordsToNumber(thousandText);
-        }
+    const head = headStr ? (wordToDigit[headStr] !== undefined ? wordToDigit[headStr] : parseFloat(headStr)) : 1;
+    if (!isNaN(head)) {
+      if (!tailStr) return Math.round(head * 100000);
+      const tail = wordToDigit[tailStr] !== undefined ? wordToDigit[tailStr] : parseFloat(tailStr);
+      if (!isNaN(tail)) {
+        if (isLe) return Math.round((head * 100 + tail) * 1000);
+        return tail < 10 ? Math.round((head * 100 + tail * 10) * 1000) : Math.round((head * 100 + tail) * 1000);
       }
-
-      if (thousandVal > 0 && thousandVal < 1000) {
-        if (thousandVal < 10 && thousandText.length === 1) {
-          thousandVal = thousandVal * 100000;
-        } else {
-          thousandVal = thousandVal * 1000;
-        }
-      }
-
-      return Math.round(millionVal * 1000000 + thousandVal);
     }
   }
 
-  // 3. Simple Million match (e.g. '7 triệu', '7tr', '7 củ', 'bảy triệu')
-  const millionOnlyMatch = text.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(củ|cu|triệu|trieu|tr)/i);
-  if (millionOnlyMatch) {
-    const mVal = wordMap[millionOnlyMatch[1].toLowerCase()] || parseFloat(millionOnlyMatch[1].replace(',', '.'));
-    if (!isNaN(mVal)) return Math.round(mVal * 1000000);
-  }
-
-  // 4. Simple Thousand match (e.g. '755k', '755 ngàn')
-  const thousandOnlyMatch = text.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(k|ngàn|ngan|nghìn|nghin)/i);
-  if (thousandOnlyMatch) {
-    const kVal = wordMap[thousandOnlyMatch[1].toLowerCase()] || parseFloat(thousandOnlyMatch[1].replace(',', '.'));
+  // Pattern C: Thousands spoken ("755k", "755 ngàn", "70k")
+  const thousandRegex = new RegExp(`(?:^|\\s)(\\d+[\\.,]?\\d*|${numWordsPattern})\\s*(?:k|ngàn|ngan|nghìn|nghin)(?:\\s+|$)`, 'i');
+  const thousandMatch = text.match(thousandRegex);
+  if (thousandMatch) {
+    const kVal = wordToDigit[thousandMatch[1]] !== undefined ? wordToDigit[thousandMatch[1]] : parseFloat(thousandMatch[1].replace(',', '.'));
     if (!isNaN(kVal)) return Math.round(kVal * 1000);
   }
 
-  // 5. Bare digits at end of text (e.g. 'đổ xăng 70')
+  // Pattern D: Bare numbers at end of string ("đổ xăng 70", "mua kính 180")
   const digitsMatch = text.match(/(\d+[\.,]?\d*)/g);
   if (digitsMatch && digitsMatch.length > 0) {
     const rawVal = parseFloat(digitsMatch[digitsMatch.length - 1].replace(/[.,]/g, ''));
@@ -448,9 +439,12 @@ function mockVietnameseParser(text: string, todayDateStr: string) {
   const transaction_date = formatYMD(dateObj);
 
   // Description cleanup
+  const numWordsPattern = 'một|mot|mốt|hai|ba|bốn|bon|tư|tu|năm|nam|lăm|lam|nhăm|rưỡi|ruoi|sáu|sau|bảy|bay|tám|tam|chín|chin';
   const cleanDesc = text
-    .replace(/\d+[\.,]?\d*\s*(k|củ|cu|tr|triệu|trieu|ngàn|ngan|nghìn|nghin)?/gi, '')
-    .replace(/\b(một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b\s*(củ|cu|triệu|trieu|tr|k|ngàn|ngan|nghìn|nghin)?/gi, '')
+    .replace(new RegExp(`(?:^|\\s)(?:${numWordsPattern}|\\d+)*\\s*(?:triệu|trieu|củ|cu|tr(?![ăa]m)|trăm|tram|ngàn|ngan|nghìn|nghin|k)\\s*(?:và\\s+)?(?:lẻ|linh)?\\s*(?:${numWordsPattern}|\\d+)?(?:\\s+|$)`, 'gi'), ' ')
+    .replace(new RegExp(`(?:^|\\s)(?:một|mot|mốt|hai|ba|bốn|bon|tư|tu|năm|nam|lăm|lam|nhăm|rưỡi|ruoi|sáu|sau|bảy|bay|tám|tam|chín|chin)\\s+(?:tám|tư|mốt|hai|ba|bốn|năm|sáu|bảy|chín)(?:\\s+|$)`, 'gi'), ' ')
+    .replace(/\d+[\.,]?\d*/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
   return {
