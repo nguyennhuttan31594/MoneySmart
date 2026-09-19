@@ -1,17 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Keyword mapping dictionary for 8 standard categories
+// Rich Vietnamese semantic keyword dictionary with exact word-boundary safety
 const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
-  'Ăn uống': ['ăn uống', 'an uong', 'ăn', 'uống', 'phở', 'cơm', 'bún', 'bánh', 'trà sữa', 'cà phê', 'cafe', 'ăn sáng', 'ăn trưa', 'ăn tối', 'nhà hàng', 'quán ăn', 'đi chợ', 'siêu thị', 'thức ăn', 'nước uống', 'nhậu', 'bia'],
-  'Di chuyển': ['di chuyển', 'di chuyen', 'xăng', 'xăng xe', 'xe cộ', 'grab', 'gojek', 'be', 'gửi xe', 'sửa xe', 'vé xe', 'vé máy bay', 'taxi', 'đi lại', 'ô tô', 'xe máy', 'bãi xe', 'xe'],
-  'Hóa đơn & Điện nước': ['hóa đơn', 'hoa don', 'tiền điện', 'tiền nước', 'điện', 'nước', 'internet', 'wifi', 'điện thoại', 'nạp tiền', 'nạp thẻ', 'truyền hình', 'phí chung cư', 'rác', 'tiền phòng', 'tiền nhà', 'thuê nhà', 'nhà ở'],
-  'Mua sắm/Giải trí': ['mua sắm', 'mua sam', 'giải trí', 'giai tri', 'du lịch', 'quần áo', 'giày dép', 'đồ dùng', 'mỹ phẩm', 'tiki', 'shopee', 'lazada', 'tiktok shop', 'phụ kiện', 'túi xách', 'đồng hồ', 'xem phim', 'chơi game', 'game', 'vé xem phim', 'karaoke'],
-  'Sức khỏe': ['sức khỏe', 'suc khoe', 'y tế', 'y te', 'thuốc', 'tiền thuốc', 'nhà thuốc', 'khám bệnh', 'bệnh viện', 'nha khoa', 'bảo hiểm y tế', 'bác sĩ', 'thuốc tây'],
-  'Con cái': ['con cái', 'con cai', 'tiền học', 'học phí', 'học tập', 'bỉm', 'sữa', 'đồ chơi', 'trường học', 'gia sư', 'tiền con', 'sách'],
-  'Trả nợ': ['trả nợ', 'tra no', 'vay nợ', 'vay no', 'mượn tiền', 'trả góp', 'ngân hàng', 'cho vay', 'đòi nợ', 'tín dụng', 'lãi suất'],
-  'Thu nhập': ['thu nhập', 'thu nhap', 'lương', 'luong', 'thưởng', 'thuong', 'lì xì', 'đầu tư', 'chứng khoán', 'bất động sản', 'lãi', 'tiền lương', 'nhận tiền', 'thu'],
+  'Di chuyển': [
+    'xăng', 'xang', 'đổ xăng', 'do xang', 'xăng xe', 'gửi xe', 'gui xe', 'bãi xe', 'bai xe',
+    'rửa xe', 'rua xe', 'sửa xe', 'sua xe', 'bảo dưỡng xe', 'thay nhớt', 'nhớt xe', 'thay lốp',
+    'grab', 'gojek', 'be', 'taxi', 'xe ôm', 'xe om', 'vé xe', 've xe', 'vé máy bay', 've may bay',
+    'phí cầu đường', 'phí cao tốc', 'vé trạm', 'vétram', 'ô tô', 'o to', 'xe máy', 'xe may',
+    'đường bộ', 'bảo hiểm xe', 'bằng lái', 'đăng kiểm', 'xe'
+  ],
+  'Ăn uống': [
+    'ăn', 'uống', 'an uong', 'phở', 'pho', 'cơm', 'com', 'bún', 'bun', 'miến', 'hủ tiếu', 'hu tieu',
+    'bánh mì', 'banh mi', 'lẩu', 'lau', 'nướng', 'nuong', 'quán ăn', 'quan an', 'nhà hàng', 'nha hang',
+    'cà phê', 'ca phe', 'cafe', 'trà sữa', 'tra sua', 'sinh tố', 'nước ép', 'nước uống', 'nuoc uong',
+    'ăn sáng', 'an sang', 'ăn trưa', 'an trua', 'ăn tối', 'an toi', 'ăn vặt', 'an vat', 'nhậu', 'nhau',
+    'bia', 'rượu', 'đi chợ', 'di cho', 'siêu thị', 'sieu thi', 'thịt', 'cá', 'rau', 'trái cây', 'đồ ăn'
+  ],
+  'Hóa đơn & Điện nước': [
+    'hóa đơn', 'hoa don', 'tiền điện', 'tien dien', 'tiền nước', 'tien nuoc', 'điện', 'nước',
+    'internet', 'wifi', '4g', '5g', 'điện thoại', 'dien thoai', 'nạp tiền', 'nap tien', 'nạp thẻ',
+    'truyền hình', 'phí chung cư', 'rác', 'tiền phòng', 'tien phong', 'tiền nhà', 'tien nha',
+    'thuê nhà', 'thue nha', 'nhà ở', 'nha o', 'phí dịch vụ', 'phí quản lý'
+  ],
+  'Mua sắm/Giải trí': [
+    'mua sắm', 'mua sam', 'giải trí', 'giai tri', 'du lịch', 'du lich', 'quần áo', 'quan ao',
+    'giày dép', 'giay dep', 'đồ dùng', 'mỹ phẩm', 'skincare', 'tiki', 'shopee', 'lazada',
+    'tiktok shop', 'phụ kiện', 'túi xách', 'đồng hồ', 'xem phim', 'vé xem phim', 'rạp phim',
+    'karaoke', 'chơi game', 'choi game', 'nạp game', 'nap game', 'khách sạn', 'homestay', 'resort',
+    'tai nghe', 'sạc', 'điện thoại mới', 'laptop', 'đồ gia dụng'
+  ],
+  'Sức khỏe': [
+    'sức khỏe', 'suc khoe', 'y tế', 'y te', 'thuốc', 'thuoc', 'tiền thuốc', 'nhà thuốc', 'dược phẩm',
+    'khám bệnh', 'kham benh', 'bệnh viện', 'benh vien', 'nha khoa', 'răng', 'mắt', 'kính cận',
+    'bảo hiểm y tế', 'bác sĩ', 'bac si', 'thực phẩm chức năng', 'vitamin', 'gym', 'yoga', 'thể thao'
+  ],
+  'Con cái': [
+    'con cái', 'con cai', 'tiền học', 'tien hoc', 'học phí', 'hoc phi', 'bỉm', 'bim', 'sữa', 'sua',
+    'đồ chơi', 'do choi', 'trường học', 'truong hoc', 'gia sư', 'tiền con', 'sách vở', 'dụng cụ học tập',
+    'học thêm', 'mẫu giáo', 'mầm non'
+  ],
+  'Trả nợ': [
+    'trả nợ', 'tra no', 'vay nợ', 'vay no', 'mượn tiền', 'muon tien', 'trả góp', 'tra gop',
+    'ngân hàng', 'ngan hang', 'cho vay', 'đòi nợ', 'tín dụng', 'lãi suất', 'đáo hạn'
+  ],
+  'Thu nhập': [
+    'thu nhập', 'thu nhap', 'lương', 'luong', 'thưởng', 'thuong', 'hoa hồng', 'lì xì', 'li xi',
+    'đầu tư', 'dau tu', 'chứng khoán', 'bất động sản', 'lãi', 'tiền lương', 'nhận tiền', 'nhan tien',
+    'bán hàng', 'ban hang', 'freelance', 'làm thêm'
+  ]
 };
+
+// Check if phrase contains a keyword using exact word boundaries
+function containsWordKeyword(text: string, kw: string): boolean {
+  const cleanText = text.toLowerCase().normalize('NFC');
+  const cleanKw = kw.toLowerCase().normalize('NFC');
+
+  // Short keywords like "ăn", "xe", "bún" require whole-word boundary
+  if (cleanKw.length <= 4) {
+    const regex = new RegExp(`(?:^|\\s|[.,!?:;])${cleanKw}(?:$|\\s|[.,!?:;])`, 'i');
+    return regex.test(cleanText);
+  }
+
+  return cleanText.includes(cleanKw);
+}
 
 function formatYMD(dateInput?: Date | string | null): string {
   const d = dateInput ? new Date(dateInput) : new Date();
@@ -40,7 +92,12 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     let rawResult: any = null;
 
-    // Try Gemini API if key is configured
+    // Build category context string from user categories
+    const categoryNamesList = categories && categories.length > 0
+      ? categories.filter((c: any) => c.parent_id !== null).map((c: any) => c.name)
+      : ['Ăn uống', 'Di chuyển', 'Hóa đơn & Điện nước', 'Mua sắm/Giải trí', 'Sức khỏe', 'Con cái', 'Trả nợ', 'Thu nhập'];
+
+    // Call Gemini AI if key is configured
     if (apiKey) {
       try {
         console.log('Gemini API Key detected. Calling Gemini API gemini-1.5-flash...');
@@ -53,49 +110,50 @@ export async function POST(req: NextRequest) {
         });
 
         const prompt = `
-Bạn là một trợ lý tài chính thông minh tiếng Việt. Hãy phân tích câu thoại thu nhập/chi tiêu sau đây của người dùng:
+Bạn là một trợ lý tài chính gia đình thông minh tiếng Việt. Hãy phân tích ngữ cảnh câu nói giao dịch sau đây:
 "${text}"
 
 Bối cảnh ngày hiện tại của hệ thống: ${todayDateStr}
+Danh sách các hạng mục khả dụng trong ứng dụng: [${categoryNamesList.join(', ')}]
 
-NHIỆM VỤ CỦA BẠN:
+QUY TẮC BẮT BUỘC PHÂN TÍCH:
 1. Xác định số tiền (amount): Trích xuất con số tiền tệ chính xác theo đơn vị VND.
-   - Các số tự nhiên đơn lẻ/ngắn như 300, 50, 100, 35, 500 khi đứng trong ngữ cảnh chi tiêu đều HIỂU NGẦM tương ứng với đơn vị NGHÌN ĐỒNG (x 1.000):
-     + 300 -> 300000
+   - Các số tự nhiên đơn lẻ/ngắn như 30, 50, 70, 100, 35, 500 khi đứng trong ngữ cảnh chi tiêu đều HIỂU NGẦM tương ứng với đơn vị NGHÌN ĐỒNG (x 1.000):
+     + 70 -> 70000 (Ví dụ: "đổ xăng 70" -> 70000 VND)
+     + 30 -> 30000
      + 50 -> 50000
      + 100 -> 100000
      + 35 -> 35000
      + 500 -> 500000
-   - Các định dạng viết tắt khác:
-     + 25k / 25 ngàn -> 25000
-     + 500k / 500 nghìn -> 500000
+   - Định dạng khác:
+     + 25k / 25 ngàn / 25 nghìn -> 25000
      + 1.5 triệu / 1.5 củ / 1.5tr -> 1500000
-     + 15 củ -> 15000000
-   - Số nguyên lớn >= 1000 (vd: 50000, 200000, 1500000) giữ nguyên giá trị VND.
+     + 15 củ / 15 triệu -> 15000000
+   - Số nguyên lớn >= 1000 (vd: 50000, 70000, 200000, 1500000) giữ nguyên giá trị VND.
 
-2. Phân loại type: 'expense' (chi tiêu/trả tiền/mua) hoặc 'income' (lương/thưởng/nhận tiền/được cho).
+2. Phân loại type: 'expense' (chi tiêu/mua/trả tiền/đổ xăng/gửi xe) hoặc 'income' (lương/thưởng/nhận tiền/được cho).
 
-3. BẮT BUỘC ÉP DANH MỤC (category_name) THUỘC ĐÚNG 1 TRONG 8 CHUỖI TÊN CỐ ĐỊNH SAU (ENUM):
-   - Nếu type là 'expense' (Chi tiêu), CHỈ ĐƯỢC CHỌN 1 TRONG 7 TÊN SAU:
-     1. "Ăn uống"
-     2. "Di chuyển"
-     3. "Hóa đơn & Điện nước"
-     4. "Mua sắm/Giải trí"
-     5. "Sức khỏe"
-     6. "Con cái"
-     7. "Trả nợ"
-   - Nếu type là 'income' (Thu nhập), CHỈ ĐƯỢC CHỌN CHÍNH XÁC TÊN SAU:
-     1. "Thu nhập"
+3. XÁC ĐỊNH HẠNG MỤC (category_name) DỰA THEO NGỮ CẢNH THÔNG MINH:
+   - "Đổ xăng", "gửi xe", "rửa xe", "sửa xe", "Grab", "GoJek", "Be", "vé xe", "vé máy bay", "bãi xe" -> CHẮC CHẮN LÀ "Di chuyển".
+   - "Cơm", "phở", "bún", "bánh mì", "cà phê", "trà sữa", "ăn sáng", "ăn trưa", "ăn tối", "đi chợ", "siêu thị" -> CHẮC CHẮN LÀ "Ăn uống".
+   - "Tiền điện", "tiền nước", "internet", "wifi", "tiền nhà", "tiền phòng", "nạp thẻ điện thoại" -> "Hóa đơn & Điện nước".
+   - "Mua quần áo", "mỹ phẩm", "Shopee", "du lịch", "xem phim", "chơi game" -> "Mua sắm/Giải trí".
+   - "Mua thuốc", "khám bệnh", "bác sĩ", "nha khoa", "bệnh viện" -> "Sức khỏe".
+   - "Tiền học", "học phí", "sữa con", "bỉm", "đồ chơi" -> "Con cái".
+   - "Trả nợ", "trả góp", "vay nợ", "tín dụng" -> "Trả nợ".
+   - "Lương", "thưởng", "lì xì", "bán hàng", "làm thêm" -> "Thu nhập".
 
-4. Trích xuất description: Tóm tắt nội dung giao dịch ngắn gọn (vd: "Đi ăn cơm tấm", "Trả tiền điện", "Nhận lương tháng 9").
-5. Giải mã transaction_date: Chuyển đổi các cụm từ thời gian tương đối như "hôm qua", "thứ 2 tuần trước", "hôm kia", "sáng nay", "tối qua" thành chuỗi ngày định dạng YYYY-MM-DD dựa vào ngày hiện tại (${todayDateStr}). Nếu không đề cập thời gian rõ ràng trong quá khứ, sử dụng chính xác ngày hiện tại ${todayDateStr}.
+   BẮT BUỘC CHỌN 1 TÊN TRONG DANH SÁCH HẠNG MỤC TRÊN KHÔNG ĐƯỢC TỰ CHẾ TÊN MỚI.
 
-Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
+4. Trích xuất description: Tóm tắt nội dung giao dịch ngắn gọn (vd: "Đổ xăng", "Đi ăn cơm tấm", "Trả tiền điện").
+5. Giải mã transaction_date: Chuyển các cụm từ như "hôm qua", "sáng nay", "hôm kia" thành YYYY-MM-DD dựa vào ngày hiện tại (${todayDateStr}).
+
+Trả về duy nhất dữ liệu JSON với cấu trúc:
 {
-  "amount": 300000,
+  "amount": 70000,
   "type": "expense",
-  "category_name": "Ăn uống",
-  "description": "Nội dung giao dịch ngắn",
+  "category_name": "Di chuyển",
+  "description": "Đổ xăng",
   "transaction_date": "YYYY-MM-DD"
 }
 `;
@@ -104,10 +162,10 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
         const responseText = result.response.text();
         rawResult = JSON.parse(responseText);
       } catch (geminiError) {
-        console.warn('Gemini API call failed, falling back to regex parser:', geminiError);
+        console.warn('Gemini API call failed, falling back to smart regex parser:', geminiError);
       }
     } else {
-      console.warn('GEMINI_API_KEY is missing in process.env. Using fallback regex parser.');
+      console.log('Using enhanced smart Vietnamese parser logic.');
     }
 
     // Fallback rule-based parser if Gemini Key is missing or API failed
@@ -128,7 +186,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc chính xác sau:
   }
 }
 
-// Normalize and map category name & id to exact 8 standard categories
+// Normalize and map category name & id to exact available categories
 function normalizeCategoryResult(raw: any, rawText: string, categories: any[], todayDateStr: string) {
   const type = raw?.type === 'income' ? 'income' : 'expense';
   const textLower = rawText.toLowerCase();
@@ -150,15 +208,22 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
     );
   }
 
-  // 2. Keyword Mapping Dictionary Match
+  // 2. Keyword Mapping Dictionary Match with Word Boundary Protection
+  if (!matchedCat) {
+    // Specific transport keywords check first to prevent false matches
+    const transportKeywords = CATEGORY_MAPPING_RULES['Di chuyển'];
+    const isTransportMatch = transportKeywords.some((kw) => containsWordKeyword(textLower, kw));
+    if (isTransportMatch) {
+      matchedCat = availableCats.find((c: any) => c.name.toLowerCase().includes('di chuyển') || c.name.toLowerCase().includes('xe'));
+    }
+  }
+
   if (!matchedCat) {
     for (const [standardName, keywords] of Object.entries(CATEGORY_MAPPING_RULES)) {
-      const matchKeyword = keywords.some(
-        (kw) => catInputLower.includes(kw) || textLower.includes(kw)
-      );
+      const matchKeyword = keywords.some((kw) => containsWordKeyword(textLower, kw));
       if (matchKeyword) {
         matchedCat = availableCats.find(
-          (c: any) => c.name.toLowerCase() === standardName.toLowerCase()
+          (c: any) => c.name.toLowerCase().includes(standardName.toLowerCase()) || standardName.toLowerCase().includes(c.name.toLowerCase())
         );
         if (matchedCat) break;
       }
@@ -198,7 +263,7 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
   };
 }
 
-// Improved rule-based parser when Gemini API Key is missing or fails
+// Improved smart rule-based parser
 function mockVietnameseParser(text: string, todayDateStr: string) {
   const lower = text.toLowerCase();
 
@@ -248,3 +313,4 @@ function mockVietnameseParser(text: string, todayDateStr: string) {
     transaction_date,
   };
 }
+
