@@ -64,7 +64,7 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({
   size = 'md',
 }) => {
   const dim = size === 'sm' ? 32 : 40;
-  const iconSize = size === 'sm' ? 15 : 18;
+  const iconSize = size === 'sm' ? 15 : 19;
   const cfg = getCfg(categoryName, iconName, isExpense);
 
   return (
@@ -73,8 +73,8 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({
       style={{
         width: dim,
         height: dim,
-        borderRadius: '50%',                 /* tròn hoàn toàn */
-        backgroundColor: cfg.bgColor,        /* tinted — rgba hex, no CSS var */
+        borderRadius: '50%',                 /* tròn 40px */
+        backgroundColor: cfg.bgColor,        /* tinted alpha 0.12 */
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -83,7 +83,7 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({
     >
       <cfg.Icon
         style={{ width: iconSize, height: iconSize, color: cfg.glyphColor }}
-        strokeWidth={1.8}
+        strokeWidth={2.0}
       />
     </div>
   );

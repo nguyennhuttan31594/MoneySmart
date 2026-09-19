@@ -308,30 +308,34 @@ export default function Home() {
         scrollBehavior: 'smooth',
       }}
     >
-      {/* ── Scroll-aware Header ── */}
+      {/* ── Scroll-aware Header (Height: 52px, Sticky, 3-Col Grid) ── */}
       <header
         className={`app-header ${scrolled ? 'scrolled' : 'at-top'}`}
-        style={{ padding: '0 16px' }}
+        style={{
+          height: 52,
+          display: 'flex',
+          alignItems: 'center',
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+        }}
       >
         <div
+          className="app-shell"
           style={{
-            maxWidth: 640,
-            margin: '0 auto',
-            padding: scrolled ? '10px 0' : '16px 0 12px',
-            transition: 'padding 300ms cubic-bezier(0.32,0.72,0,1)',
-            display: 'flex',
+            display: 'grid',
+            gridTemplateColumns: '36px 1fr auto',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            position: 'relative',
+            gap: 10,
           }}
         >
-          {/* Icon — always visible */}
+          {/* Icon ví: tròn 36px, nền rgba(0,122,255,0.10) */}
           <div
             style={{
               width: 36,
               height: 36,
               borderRadius: '50%',
-              background: 'var(--fill-quaternary)',
+              background: 'rgba(0, 122, 255, 0.10)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -339,55 +343,41 @@ export default function Home() {
             }}
           >
             <Wallet
-              style={{ width: 18, height: 18, color: 'var(--blue)' }}
+              style={{ width: 18, height: 18, color: '#007AFF' }}
               strokeWidth={1.8}
               aria-hidden="true"
             />
           </div>
 
-          {/* Title — Large when at top, inline when scrolled */}
-          <div
+          {/* Tên app: 17px / weight 600 / letter-spacing -0.44px, căn Trái */}
+          <h1
             style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: scrolled ? 'center' : 'flex-end',
-              justifyContent: scrolled ? 'center' : 'flex-start',
-              paddingLeft: scrolled ? 0 : 12,
-              position: scrolled ? 'absolute' : 'relative',
-              left: scrolled ? '50%' : 'auto',
-              transform: scrolled ? 'translateX(-50%)' : 'none',
-              transition: 'all 300ms cubic-bezier(0.32,0.72,0,1)',
+              fontSize: 17,
+              fontWeight: 600,
+              letterSpacing: '-0.44px',
+              color: 'var(--label)',
+              lineHeight: '22px',
+              whiteSpace: 'nowrap',
+              margin: 0,
             }}
           >
-            <h1
-              style={{
-                fontSize: scrolled ? 17 : 28,
-                fontWeight: scrolled ? 600 : 700,
-                letterSpacing: scrolled ? '-0.43px' : '-0.40px',
-                color: 'var(--label)',
-                transition: 'font-size 300ms cubic-bezier(0.32,0.72,0,1), font-weight 300ms cubic-bezier(0.32,0.72,0,1)',
-                lineHeight: 1.2,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              MoneySmartflow
-            </h1>
-          </div>
+            MoneySmartflow
+          </h1>
 
-          {/* Supabase badge — always right */}
+          {/* Badge Live / Local */}
           <div
-            className="glass-thin"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 600,
               borderRadius: 9999,
-              padding: '3px 10px',
-              color: 'var(--label-secondary)',
-              flexShrink: 0,
+              padding: '0 10px',
               height: 22,
+              background: isSupabaseConfigured ? 'rgba(52,199,89,0.12)' : 'rgba(255,149,0,0.12)',
+              color: isSupabaseConfigured ? '#248A3D' : '#C67300',
+              flexShrink: 0,
             }}
           >
             <span
@@ -404,32 +394,14 @@ export default function Home() {
             {isSupabaseConfigured ? 'Live' : 'Local'}
           </div>
         </div>
-
-        {/* Large-title subtitle — only when at top */}
-        {!scrolled && (
-          <p
-            className="type-subhead"
-            style={{
-              color: 'var(--label-secondary)',
-              maxWidth: 640,
-              margin: '0 auto',
-              paddingLeft: 48,
-              paddingBottom: 8,
-              opacity: scrolled ? 0 : 1,
-              transition: 'opacity 200ms cubic-bezier(0.4,0,0.2,1)',
-            }}
-          >
-            Quản lý tài chính cá nhân
-          </p>
-        )}
       </header>
 
-      {/* ── Page content ── */}
+      {/* ── Main Page Content ── */}
       <div
+        className="app-shell"
         style={{
-          maxWidth: 640,
-          margin: '0 auto',
-          padding: '16px 16px 200px',
+          paddingTop: 12,
+          paddingBottom: 190, /* Extra space so dock never overlaps content */
         }}
       >
         {activeTab === 'transactions' && (
@@ -461,6 +433,21 @@ export default function Home() {
         onClose={() => setIsPreviewOpen(false)}
       />
 
+      {/* ── Scrim Gradient Background Behind Dock ── */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 140,
+          zIndex: 39,
+          pointerEvents: 'none',
+          background: 'linear-gradient(to top, #F2F2F7 30%, rgba(242,242,247,0.85) 60%, rgba(242,242,247,0) 100%)',
+        }}
+        aria-hidden="true"
+      />
+
       {/* ── Fixed Bottom Dock ── */}
       <div
         style={{
@@ -469,20 +456,17 @@ export default function Home() {
           left: 0,
           right: 0,
           zIndex: 40,
-          padding: `0 16px calc(8px + env(safe-area-inset-bottom, 0px))`,
-          /* Fade-out gradient so content behind is readable */
-          background: 'linear-gradient(to top, var(--bg-grouped) 55%, transparent 100%)',
           pointerEvents: 'none',
         }}
       >
         <div
+          className="app-shell"
           style={{
-            maxWidth: 640,
-            margin: '0 auto',
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
             pointerEvents: 'auto',
+            paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
           }}
         >
           {/* FAB — morphing glass input */}
@@ -492,7 +476,7 @@ export default function Home() {
             onFocusChange={(focused) => setFabFocused(focused)}
           />
 
-          {/* Pill Tab Bar — glass, slides in/out */}
+          {/* Pill Tab Bar — glass floating pill */}
           <nav
             className="tab-bar glass-regular"
             aria-label="Điều hướng chính"
@@ -500,7 +484,7 @@ export default function Home() {
               height: fabFocused ? 0 : 56,
               opacity: fabFocused ? 0 : 1,
               overflow: 'hidden',
-              margin: fabFocused ? 0 : '0 0',
+              borderRadius: 9999,
               transition: 'height 400ms cubic-bezier(0.32,0.72,0,1), opacity 280ms cubic-bezier(0.4,0,0.2,1)',
             }}
           >
@@ -510,6 +494,8 @@ export default function Home() {
               style={{
                 left: tabIndicatorLeft,
                 width: tabIndicatorWidth,
+                borderRadius: 9999,
+                background: 'color-mix(in srgb, #007AFF 12%, transparent)',
               }}
               aria-hidden="true"
             />
@@ -523,13 +509,18 @@ export default function Home() {
                   onClick={() => switchTab(id, idx)}
                   aria-current={isActive ? 'page' : undefined}
                   aria-label={label}
+                  style={{
+                    color: isActive ? '#007AFF' : 'rgba(60,60,67,0.60)',
+                  }}
                 >
                   <Icon
                     style={{ width: 22, height: 22 }}
                     strokeWidth={isActive ? 2 : 1.6}
                     aria-hidden="true"
                   />
-                  <span className="tab-label">{label}</span>
+                  <span className="tab-label" style={{ fontSize: 10, fontWeight: 600 }}>
+                    {label}
+                  </span>
                 </button>
               );
             })}

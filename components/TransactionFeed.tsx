@@ -48,7 +48,7 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
   const [isDragging, setIsDragging] = useState(false);
 
   const isExpense = tx.type === 'expense';
-  const amountColor = isExpense ? 'var(--red)' : 'var(--green)';
+  const amountColor = isExpense ? '#FF3B30' : '#34C759';
   const prefix = isExpense ? '−' : '+';
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -61,14 +61,14 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
     const dx = e.touches[0].clientX - startX;
     if (dx < -8) setIsDragging(true);
     if (isDragging) {
-      const clamped = Math.max(-120, Math.min(0, dx));
+      const clamped = Math.max(-88, Math.min(0, dx));
       setSwipeX(clamped);
     }
   };
 
   const handleTouchEnd = () => {
-    if (swipeX < -60) {
-      setSwipeX(-120);
+    if (swipeX < -44) {
+      setSwipeX(-88);
     } else {
       setSwipeX(0);
     }
@@ -81,36 +81,38 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
     onDelete(tx.id);
   };
 
+  const rawNumStr = new Intl.NumberFormat('vi-VN').format(Math.abs(tx.amount));
+
   return (
     <div
       className="animate-slide-up"
       style={{ animationDelay: `${animationDelay}ms`, position: 'relative', overflow: 'hidden' }}
     >
-      {/* Swipe action backdrop */}
+      {/* Swipe action backdrop — 88px wide delete button */}
       <div
         style={{
           position: 'absolute',
           right: 0,
           top: 0,
           bottom: 0,
-          width: 120,
+          width: 88,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
-          paddingRight: 8,
         }}
       >
         <button
           onClick={handleDelete}
           aria-label="Xóa giao dịch"
           style={{
-            background: 'var(--red)',
+            background: '#FF3B30',
             color: '#fff',
-            borderRadius: 12,
-            padding: '8px 16px',
+            borderRadius: 0,
+            width: '100%',
+            height: '100%',
             fontSize: 13,
             fontWeight: 600,
+            border: 'none',
             fontFamily: 'inherit',
           }}
         >
@@ -127,12 +129,11 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
         style={{
           transform: `translateX(${swipeX}px)`,
           transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.32,0.72,0,1)',
-          background: 'var(--bg-elevated)',
-          /* Remove last separator handled via CSS :not(:last-child) */
+          background: '#FFFFFF',
         }}
         role="listitem"
       >
-        {/* Col 1: Icon */}
+        {/* Col 1: Icon — 40px circle */}
         <CategoryIcon
           categoryName={cat?.name}
           iconName={cat?.icon}
@@ -143,23 +144,31 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
         {/* Col 2: Text */}
         <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <p
-            className="type-headline"
             style={{
-              color: 'var(--label)',
+              fontSize: 17,
+              fontWeight: 600,
+              letterSpacing: '-0.43px',
+              color: '#000000',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              margin: 0,
+              lineHeight: '22px',
             }}
           >
             {cat?.name ?? (isExpense ? 'Chi tiêu' : 'Thu nhập')}
           </p>
           <p
-            className="type-subhead"
             style={{
-              color: 'var(--label-secondary)',
+              fontSize: 15,
+              fontWeight: 400,
+              letterSpacing: '-0.23px',
+              color: 'rgba(60, 60, 67, 0.60)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              margin: 0,
+              lineHeight: '20px',
             }}
           >
             {formatTimeOnly(tx.transaction_date)}
@@ -172,28 +181,41 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
           <p
             className="tabular-num"
             style={{
-              fontSize: 15,
+              fontSize: 17,
               fontWeight: 600,
-              letterSpacing: '-0.23px',
               color: amountColor,
               whiteSpace: 'nowrap',
+              margin: 0,
+              lineHeight: '22px',
             }}
           >
-            {prefix}{formatVND(tx.amount)}
+            {prefix}{rawNumStr}
+            <span
+              style={{
+                textDecoration: 'none',
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'rgba(60, 60, 67, 0.45)',
+                marginLeft: 3,
+                display: 'inline-block',
+              }}
+            >
+              ₫
+            </span>
           </p>
         </div>
       </div>
 
-      {/* Inset separator (CSS handles, but last row needs none) */}
+      {/* Inset separator: 16 (pad) + 40 (icon) + 12 (gap) = 68px */}
       {!isLast && (
         <div
           style={{
             position: 'absolute',
             bottom: 0,
-            left: 60,
+            left: 68,
             right: 0,
             height: '0.5px',
-            background: 'var(--separator)',
+            background: 'rgba(60, 60, 67, 0.20)',
             pointerEvents: 'none',
           }}
         />
@@ -264,32 +286,62 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Header ── */}
-      <div style={{ paddingTop: 4 }}>
-        <h2 className="type-title2" style={{ color: 'var(--label)' }}>
+      {/* ── Header: Title 28px & Pill Count ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          marginTop: 8,
+          marginBottom: 12,
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 28,
+            fontWeight: 700,
+            letterSpacing: '-0.5px',
+            lineHeight: '34px',
+            color: '#000000',
+            margin: 0,
+          }}
+        >
           Nhật Ký Giao Dịch
         </h2>
-        <p className="type-subhead" style={{ color: 'var(--label-secondary)', marginTop: 2 }}>
+        <div
+          style={{
+            height: 24,
+            padding: '0 10px',
+            borderRadius: 9999,
+            background: 'rgba(116, 116, 128, 0.12)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            fontSize: 13,
+            fontWeight: 500,
+            color: 'rgba(60, 60, 67, 0.60)',
+          }}
+        >
           {filteredTransactions.length} giao dịch
-        </p>
+        </div>
       </div>
 
-      {/* ── Search bar ── */}
+      {/* ── Search bar: 36px, radius 9999, background rgba(118,118,128,0.12) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          background: 'var(--fill-quaternary)',
+          gap: 8,
+          background: 'rgba(118, 118, 128, 0.12)',
           borderRadius: 9999,
           padding: '0 14px',
           height: 36,
+          marginBottom: 12,
         }}
       >
         <Search
-          style={{ width: 17, height: 17, color: 'var(--label-tertiary)', flexShrink: 0 }}
+          style={{ width: 16, height: 16, color: 'rgba(60, 60, 67, 0.45)', flexShrink: 0 }}
           strokeWidth={2}
           aria-hidden="true"
         />
@@ -307,14 +359,14 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
             fontFamily: 'inherit',
             fontSize: 17,
             letterSpacing: '-0.43px',
-            color: 'var(--label)',
+            color: '#000000',
           }}
         />
       </div>
 
-      {/* ── Segmented control ── */}
-      <div style={{ position: 'relative', display: 'inline-flex', alignSelf: 'flex-start' }}>
-        <div className="segment-track" style={{ position: 'relative' }}>
+      {/* ── Segmented control: Full width 100%, height 32px ── */}
+      <div style={{ width: '100%', marginBottom: 20 }}>
+        <div className="segment-track" style={{ height: 32 }}>
           {/* Sliding thumb */}
           <div
             className="segment-thumb"
@@ -340,18 +392,22 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
       <div
         className="stagger-list"
         role="list"
-        style={{ display: 'flex', flexDirection: 'column', gap: 28 }}
+        style={{ display: 'flex', flexDirection: 'column' }}
       >
         {groupedTransactions.length > 0 ? (
           groupedTransactions.map((group) => (
-            <div key={group.label} className="animate-slide-up">
-              {/* Date label */}
+            <div key={group.label} className="animate-slide-up" style={{ marginTop: 24 }}>
+              {/* Date label: 12px / 600 / uppercase / letter-spacing 0.5px / rgba(60,60,67,0.55) */}
               <p
-                className="type-caption"
                 style={{
-                  color: 'var(--label-secondary)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  color: 'rgba(60, 60, 67, 0.55)',
                   paddingLeft: 16,
                   marginBottom: 8,
+                  margin: '0 0 8px 0',
                 }}
               >
                 {group.label}
@@ -368,7 +424,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
                       cat={cat}
                       isLast={idx === group.items.length - 1}
                       onDelete={onDeleteTransaction}
-                      animationDelay={idx * 30}
+                      animationDelay={idx * 28}
                     />
                   );
                 })}

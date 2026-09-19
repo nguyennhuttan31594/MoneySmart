@@ -72,12 +72,22 @@ body {
   /* systemGroupedBackground — always light iOS design */
   background-color: #F2F2F7 !important;
   color: #1C1C1E !important;
-  font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Inter var", system-ui, sans-serif;
-  font-feature-settings: "ss01", "cv11";
+  font-family: "Inter", -apple-system, "SF Pro Text", system-ui, sans-serif;
+  font-optical-sizing: auto;
+  font-feature-settings: "cv11" 1, "ss01" 1, "tnum" 0;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
+}
+
+/* Single unified container width across entire app (430px — iPhone 16 Pro Max) */
+.app-shell {
+  width: 100%;
+  max-width: 430px;
+  margin-inline: auto;
+  padding-inline: 16px;
+  box-sizing: border-box;
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -249,7 +259,7 @@ body {
 .card-solid {
   background: var(--bg-elevated);
   border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px -8px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
@@ -323,21 +333,22 @@ body {
    SECTION 6 — SEGMENTED CONTROL
    ──────────────────────────────────────────────────────────────── */
 .segment-track {
-  background: var(--fill-quaternary);
+  background: rgba(118, 118, 128, 0.12);
   border-radius: 9999px;
   padding: 2px;
   display: inline-flex;
   position: relative;
+  width: 100%;
 }
 
 .segment-thumb {
   position: absolute;
   top: 2px;
   bottom: 2px;
-  background: var(--bg-elevated);
+  background: #FFFFFF;
   border-radius: 9999px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04);
-  transition: transform 400ms var(--spring-smooth), width 280ms var(--spring-smooth);
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1), width 280ms cubic-bezier(0.32, 0.72, 0, 1);
   pointer-events: none;
   z-index: 0;
 }
@@ -348,18 +359,19 @@ body {
   padding: 5px 16px;
   border-radius: 9999px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--label-secondary);
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.60);
   transition: color 200ms var(--ease-standard);
   white-space: nowrap;
   min-height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 1;
 }
 
 .segment-btn.active {
-  color: var(--label);
+  color: #000000;
   font-weight: 600;
 }
 
@@ -369,9 +381,9 @@ body {
 .tx-row {
   display: grid;
   grid-template-columns: 40px 1fr auto;
-  gap: 12px;
+  column-gap: 12px;
   align-items: center;
-  padding: 12px 16px;
+  padding: 10px 16px;
   min-height: 60px;
   position: relative;
   cursor: pointer;
@@ -380,7 +392,7 @@ body {
 }
 
 .tx-row:active {
-  background: var(--fill-quaternary);
+  background: rgba(118, 118, 128, 0.10);
   transition: background 0ms;
 }
 
@@ -389,15 +401,15 @@ body {
   transition: background 250ms var(--ease-standard);
 }
 
-/* Separator — starts at 60px (after icon), except last row */
+/* Separator — starts at EXACT 68px (16px pad + 40px icon + 12px gap) */
 .tx-row + .tx-row::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 60px;   /* inset after icon */
+  left: 68px;   /* 16 + 40 + 12 = 68px */
   right: 0;
   height: 0.5px;
-  background: var(--separator);
+  background: rgba(60, 60, 67, 0.20);
 }
 
 /* Icon container */
@@ -421,10 +433,10 @@ body {
   will-change: backdrop-filter, background;
   transform: translateZ(0);
   transition:
-    background 300ms var(--spring-smooth),
-    backdrop-filter 300ms var(--spring-smooth),
-    border-color 300ms var(--ease-standard),
-    box-shadow 300ms var(--ease-standard);
+    background 250ms var(--ease-standard),
+    backdrop-filter 250ms var(--ease-standard),
+    border-color 250ms var(--ease-standard),
+    box-shadow 250ms var(--ease-standard);
 }
 
 /* Transparent at top */
@@ -438,13 +450,11 @@ body {
 
 /* Glass when scrolled */
 .app-header.scrolled {
-  background: var(--glass-bg-regular);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border-bottom: 0.5px solid var(--glass-border);
-  box-shadow:
-    0 1px 0 var(--separator),
-    0 4px 16px -4px rgba(0, 0, 0, 0.08);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.04);
 }
 
 .app-header.scrolled::before {

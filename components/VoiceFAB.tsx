@@ -126,11 +126,33 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
           className="glass-regular voice-fab"
           style={{
             borderRadius: isFocused ? 24 : 9999,
-            height: isFocused ? 'auto' : 56,
-            minHeight: 56,
-            alignItems: isFocused ? 'flex-end' : 'center',
+            height: isFocused ? 120 : 56,
+            transition: 'height 400ms cubic-bezier(0.32,0.72,0,1), border-radius 400ms cubic-bezier(0.32,0.72,0,1)',
+            background: 'rgba(255, 255, 255, 0.72)',
+            backdropFilter: 'blur(28px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+            border: '0.5px solid rgba(255, 255, 255, 0.65)',
+            boxShadow: '0 12px 32px -8px rgba(0, 0, 0, 0.16), inset 0 1px 0 0 rgba(255, 255, 255, 0.85)',
+            position: 'relative',
+            display: 'flex',
+            alignItems: isFocused ? 'flex-start' : 'center',
+            padding: isFocused ? '12px 12px 12px 16px' : '8px 8px 8px 16px',
+            gap: 8,
           }}
         >
+          {/* Specular highlight ::before overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 'inherit',
+              pointerEvents: 'none',
+              background: 'linear-gradient(140deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.08) 30%, rgba(255,255,255,0) 58%, rgba(255,255,255,0.20) 100%)',
+              zIndex: 1,
+            }}
+            aria-hidden="true"
+          />
+
           {/* Text input */}
           <input
             ref={inputRef}
@@ -147,7 +169,7 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
             placeholder={
               isListening
                 ? 'Đang lắng nghe...'
-                : "Gõ hoặc nói: 'Cơm tấm 35k', 'Lương 15tr'..."
+                : "Gõ hoặc nói: 'Cơm tấm 35k'..."
             }
             aria-label="Nhập giao dịch"
             className="voice-fab-input"
@@ -160,61 +182,80 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
               fontSize: 17,
               fontWeight: 400,
               letterSpacing: '-0.43px',
-              color: 'var(--label)',
-              caretColor: 'var(--blue)',
-              padding: '14px 0',
+              color: '#000000',
+              caretColor: '#007AFF',
+              padding: isFocused ? '4px 0' : '0',
+              zIndex: 2,
+              height: isFocused ? '100%' : 'auto',
             }}
           />
 
-          {/* Mic button */}
-          <button
-            type="button"
-            onClick={toggleListen}
-            disabled={isProcessing}
-            aria-label={isListening ? 'Dừng ghi âm' : 'Bắt đầu ghi âm'}
-            className="fab-btn"
-            style={{
-              background: isListening
-                ? 'var(--red)'
-                : 'var(--fill-quaternary)',
-              color: isListening ? '#fff' : 'var(--label-secondary)',
-              position: 'relative',
-            }}
-          >
-            {/* Ripple rings when recording */}
-            {isListening && (
-              <>
-                <span className="recording-ring" />
-                <span className="recording-ring" />
-                <span className="recording-ring" />
-              </>
-            )}
-            {isListening
-              ? <MicOff style={{ width: 18, height: 18 }} aria-hidden="true" />
-              : <Mic style={{ width: 18, height: 18 }} strokeWidth={2} aria-hidden="true" />
-            }
-          </button>
+          {/* Action buttons wrapper */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, zIndex: 2, alignSelf: isFocused ? 'flex-end' : 'center' }}>
+            {/* Mic button */}
+            <button
+              type="button"
+              onClick={toggleListen}
+              disabled={isProcessing}
+              aria-label={isListening ? 'Dừng ghi âm' : 'Bắt đầu ghi âm'}
+              className="fab-btn"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: isListening ? '#FF3B30' : 'rgba(118, 118, 128, 0.12)',
+                color: isListening ? '#FFFFFF' : 'rgba(60, 60, 67, 0.60)',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {/* Ripple rings when recording */}
+              {isListening && (
+                <>
+                  <span className="recording-ring" />
+                  <span className="recording-ring" />
+                  <span className="recording-ring" />
+                </>
+              )}
+              {isListening
+                ? <MicOff style={{ width: 18, height: 18 }} aria-hidden="true" />
+                : <Mic style={{ width: 18, height: 18 }} strokeWidth={2} aria-hidden="true" />
+              }
+            </button>
 
-          {/* Send button */}
-          <button
-            type="submit"
-            disabled={!hasContent || isProcessing}
-            aria-label="Gửi giao dịch"
-            className="fab-btn press-scale"
-            style={{
-              background: 'var(--blue)',
-              color: '#fff',
-              opacity: hasContent && !isProcessing ? 1 : 0.35,
-              transform: hasContent && !isProcessing ? 'scale(1)' : 'scale(0.9)',
-              transition: 'opacity 280ms cubic-bezier(0.25,1.5,0.5,1), transform 280ms cubic-bezier(0.25,1.5,0.5,1)',
-              boxShadow: hasContent ? '0 4px 12px rgba(0,122,255,0.35)' : 'none',
-            }}
-          >
-            {isProcessing
-              ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} aria-hidden="true" />
-              : <SendHorizonal style={{ width: 16, height: 16 }} aria-hidden="true" />
-            }
-          </button>
+            {/* Send button */}
+            <button
+              type="submit"
+              disabled={!hasContent || isProcessing}
+              aria-label="Gửi giao dịch"
+              className="fab-btn press-scale"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: '#007AFF',
+                color: '#FFFFFF',
+                opacity: hasContent && !isProcessing ? 1 : 0.35,
+                transform: hasContent && !isProcessing ? 'scale(1)' : 'scale(0.92)',
+                transition: 'opacity 280ms cubic-bezier(0.32,0.72,0,1), transform 280ms cubic-bezier(0.32,0.72,0,1)',
+                boxShadow: hasContent ? '0 4px 12px rgba(0,122,255,0.35)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: 'none',
+                cursor: hasContent && !isProcessing ? 'pointer' : 'default',
+              }}
+            >
+              {isProcessing
+                ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} aria-hidden="true" />
+                : <SendHorizonal style={{ width: 18, height: 18 }} aria-hidden="true" />
+              }
+            </button>
+          </div>
         </div>
       </form>
 
