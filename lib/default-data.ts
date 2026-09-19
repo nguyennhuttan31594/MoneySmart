@@ -5,7 +5,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-p-expense', name: 'Chi Tiêu', type: 'expense', icon: 'ShoppingCart', color: '#FF3B30', parent_id: null },
   { id: 'cat-p-income', name: 'Thu Nhập', type: 'income', icon: 'Wallet', color: '#34C759', parent_id: null },
 
-  // Standard Expense Categories (Tier 2) - 8 Distinct Colors
+  // Standard Expense Categories (Tier 2)
   { id: 'cat-c-food', parent_id: 'cat-p-expense', name: 'Ăn uống', type: 'expense', icon: 'Utensils', color: '#FF9500', budget_limit: 5000000 },
   { id: 'cat-c-transport', parent_id: 'cat-p-expense', name: 'Di chuyển', type: 'expense', icon: 'Car', color: '#007AFF', budget_limit: 1500000 },
   { id: 'cat-c-bills', parent_id: 'cat-p-expense', name: 'Hóa đơn & Điện nước', type: 'expense', icon: 'Zap', color: '#FFCC00', budget_limit: 2000000 },
@@ -14,10 +14,13 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-c-education', parent_id: 'cat-p-expense', name: 'Giáo dục & Học tập', type: 'expense', icon: 'BookOpen', color: '#5856D6', budget_limit: 2000000 },
   { id: 'cat-c-children', parent_id: 'cat-p-expense', name: 'Con cái', type: 'expense', icon: 'Baby', color: '#AF52DE', budget_limit: 3000000 },
   { id: 'cat-c-entertainment', parent_id: 'cat-p-expense', name: 'Giải trí', type: 'expense', icon: 'Film', color: '#FF3B30', budget_limit: 1000000 },
-  { id: 'cat-c-debt', parent_id: 'cat-p-expense', name: 'Trả nợ', type: 'expense', icon: 'CreditCard', color: '#A2845E' },
+  { id: 'cat-c-debt', parent_id: 'cat-p-expense', name: 'Trả nợ', type: 'expense', icon: 'CreditCard', color: '#A2845E', budget_limit: null },
 
   // Standard Income Categories (Tier 2)
-  { id: 'cat-c-income', parent_id: 'cat-p-income', name: 'Thu nhập', type: 'income', icon: 'Wallet', color: '#34C759' },
+  { id: 'cat-c-salary', parent_id: 'cat-p-income', name: 'Lương cố định', type: 'income', icon: 'DollarSign', color: '#34C759', budget_limit: null },
+  { id: 'cat-c-bonus', parent_id: 'cat-p-income', name: 'Thưởng & Phụ cấp', type: 'income', icon: 'Gift', color: '#10B981', budget_limit: null },
+  { id: 'cat-c-freelance', parent_id: 'cat-p-income', name: 'Làm thêm / Freelance', type: 'income', icon: 'Briefcase', color: '#06B6D4', budget_limit: null },
+  { id: 'cat-c-investment', parent_id: 'cat-p-income', name: 'Đầu tư & Lãi', type: 'income', icon: 'TrendingUp', color: '#84CC16', budget_limit: null },
 ];
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [];
