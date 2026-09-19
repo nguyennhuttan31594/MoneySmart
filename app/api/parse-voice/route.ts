@@ -330,6 +330,32 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
 
 // Smart robust amount parsing for Vietnamese voice & text inputs
 function parseVnAmount(val: any, rawText: string): number {
+  const text = (rawText || '').toLowerCase().trim();
+  if (!text) return 0;
+
+  // STT Rule 1: Chrome STT "100 8", "100 4", "100 5", "200 5", "100 8k", "100 4k"
+  const hundredSpaceDigitMatch = text.match(/(?:^|\s)(\d00)\s+([1-9])(?:k|ngàn|ngan)?(?:\s+|$)/i);
+  if (hundredSpaceDigitMatch) {
+    const head = parseInt(hundredSpaceDigitMatch[1], 10);
+    const tail = parseInt(hundredSpaceDigitMatch[2], 10);
+    return (head + tail * 10) * 1000;
+  }
+
+  // STT Rule 2: Chrome STT "1008", "1004", "1005", "1001", "1002"
+  const hundredConcatDigitMatch = text.match(/(?:^|\s)([1-9]00)([1-9])(?:\s+|$)/i);
+  if (hundredConcatDigitMatch) {
+    const head = parseInt(hundredConcatDigitMatch[1], 10);
+    const tail = parseInt(hundredConcatDigitMatch[2], 10);
+    return (head + tail * 10) * 1000;
+  }
+
+  // STT Rule 3: Chrome STT bare 2-digit numbers 11..19 without units ("mua mắt kính 18" -> 180k, "mua mắt kính 14" -> 140k)
+  const bareTeenMatch = text.match(/(?:^|\s)(1[1-9])(?:\s+|$)/i);
+  if (bareTeenMatch) {
+    const teenVal = parseInt(bareTeenMatch[1], 10);
+    return teenVal * 10000; // 18 -> 180000, 14 -> 140000
+  }
+
   // 1. Direct numeric value from AI safety check
   if (typeof val === 'number' && !isNaN(val) && val > 0) {
     return val < 1000 ? val * 1000 : val;
@@ -341,9 +367,6 @@ function parseVnAmount(val: any, rawText: string): number {
       return num < 1000 ? num * 1000 : num;
     }
   }
-
-  const text = (rawText || '').toLowerCase().trim();
-  if (!text) return 0;
 
   const wordToDigit: { [key: string]: number } = {
     'không': 0, 'khong': 0,
