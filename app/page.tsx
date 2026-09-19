@@ -108,14 +108,14 @@ export default function Home() {
           if (!txErr && txData) {
             let finalTxs = [...txData];
 
-            // Auto-upload any unsynced local transactions (starts with tx-) to Supabase
-            const unsyncedLocal = localTxs.filter(
-              (lt) => lt.id.startsWith('tx-') && !INITIAL_TRANSACTIONS.some((it) => it.id === lt.id)
+            // Filter out old mock items tx-1..tx-5 from local cache
+            const realLocalUnsynced = localTxs.filter(
+              (lt) => lt.id.startsWith('tx-') && !['tx-1', 'tx-2', 'tx-3', 'tx-4', 'tx-5'].includes(lt.id)
             );
 
-            if (unsyncedLocal.length > 0) {
+            if (realLocalUnsynced.length > 0) {
               const { data: uploaded } = await supabase.from('transactions').insert(
-                unsyncedLocal.map((t) => ({
+                realLocalUnsynced.map((t) => ({
                   category_id: t.category_id,
                   amount: t.amount,
                   type: t.type,
@@ -126,9 +126,9 @@ export default function Home() {
               ).select();
 
               if (uploaded && uploaded.length > 0) {
-                const uploadedIds = new Set(uploaded.map((u) => u.id));
                 const remoteIds = new Set(txData.map((t) => t.id));
-                finalTxs = [...uploaded, ...txData.filter((t) => !uploadedIds.has(t.id))].sort(
+                const newUploaded = uploaded.filter((u) => !remoteIds.has(u.id));
+                finalTxs = [...newUploaded, ...txData].sort(
                   (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
                 );
               }
