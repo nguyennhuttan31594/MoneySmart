@@ -56,6 +56,7 @@ const TxRow: React.FC<TxRowProps> = ({
   onClose,
 }) => {
   const [startX, setStartX] = useState<number | null>(null);
+  const [startY, setStartY] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
 
@@ -63,21 +64,31 @@ const TxRow: React.FC<TxRowProps> = ({
   const amountColor = isExpense ? '#FF3B30' : '#34C759';
   const prefix = isExpense ? '−' : '+';
 
-  const currentSwipeX = dragOffset !== null ? dragOffset : (isOpen ? -88 : 0);
+  const currentSwipeX = dragOffset !== null ? dragOffset : (isOpen ? -120 : 0);
 
-  const handleStart = (clientX: number) => {
+  const handleStart = (clientX: number, clientY: number) => {
     setStartX(clientX);
+    setStartY(clientY);
     setIsDragging(false);
   };
 
-  const handleMove = (clientX: number) => {
-    if (startX === null) return;
+  const handleMove = (clientX: number, clientY: number) => {
+    if (startX === null || startY === null) return;
     const dx = clientX - startX;
-    if (Math.abs(dx) > 6) setIsDragging(true);
+    const dy = clientY - startY;
+
+    // Ignore horizontal swipe if user is scrolling vertically
+    if (!isDragging && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
+      return;
+    }
+
+    if (Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)) {
+      setIsDragging(true);
+    }
 
     if (isDragging || Math.abs(dx) > 6) {
-      const basePos = isOpen ? -88 : 0;
-      const clamped = Math.max(-88, Math.min(0, basePos + dx));
+      const basePos = isOpen ? -120 : 0;
+      const clamped = Math.max(-120, Math.min(0, basePos + dx));
       setDragOffset(clamped);
     }
   };
@@ -85,19 +96,24 @@ const TxRow: React.FC<TxRowProps> = ({
   const handleEnd = () => {
     if (startX === null) return;
     if (dragOffset !== null) {
-      if (dragOffset < -40) {
+      if (dragOffset < -50) {
         onOpen();
       } else {
         onClose();
       }
+    } else if (isOpen) {
+      // User tapped on the open row without dragging -> CLOSE IT!
+      onClose();
     }
     setStartX(null);
+    setStartY(null);
     setIsDragging(false);
     setDragOffset(null);
   };
 
   const handleRowClick = (e: React.MouseEvent) => {
     if (isOpen) {
+      e.preventDefault();
       e.stopPropagation();
       onClose();
     }
@@ -109,6 +125,12 @@ const TxRow: React.FC<TxRowProps> = ({
     onDelete(tx.id);
   };
 
+  const handleCancelSwipe = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    vibrate(6);
+    onClose();
+  };
+
   const rawNumStr = new Intl.NumberFormat('vi-VN').format(Math.abs(tx.amount));
 
   return (
@@ -117,19 +139,39 @@ const TxRow: React.FC<TxRowProps> = ({
       className="animate-slide-up"
       style={{ position: 'relative', overflow: 'hidden' }}
     >
-      {/* Swipe action backdrop — 88px wide delete button */}
+      {/* Swipe action backdrop — 120px wide backdrop with Xóa + Hủy buttons */}
       <div
         style={{
           position: 'absolute',
           right: 0,
           top: 0,
           bottom: 0,
-          width: 88,
+          width: 120,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: 'stretch',
+          zIndex: 1,
         }}
       >
+        <button
+          onClick={handleCancelSwipe}
+          aria-label="Hủy xóa"
+          style={{
+            background: '#8E8E93',
+            color: '#fff',
+            borderRadius: 0,
+            width: 50,
+            fontSize: 12,
+            fontWeight: 600,
+            border: 'none',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          Hủy
+        </button>
         <button
           onClick={handleDelete}
           aria-label="Xóa giao dịch"
@@ -137,13 +179,15 @@ const TxRow: React.FC<TxRowProps> = ({
             background: '#FF3B30',
             color: '#fff',
             borderRadius: 0,
-            width: '100%',
-            height: '100%',
+            flex: 1,
             fontSize: 13,
             fontWeight: 600,
             border: 'none',
             fontFamily: 'inherit',
             cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           Xoá
@@ -154,17 +198,19 @@ const TxRow: React.FC<TxRowProps> = ({
       <div
         className="tx-row"
         onClick={handleRowClick}
-        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
-        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={handleEnd}
-        onMouseDown={(e) => handleStart(e.clientX)}
-        onMouseMove={(e) => { if (startX !== null) handleMove(e.clientX); }}
+        onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
+        onMouseMove={(e) => { if (startX !== null) handleMove(e.clientX, e.clientY); }}
         onMouseUp={handleEnd}
         onMouseLeave={() => { if (startX !== null) handleEnd(); }}
         style={{
           transform: `translateX(${currentSwipeX}px)`,
           transition: isDragging || dragOffset !== null ? 'none' : 'transform 320ms cubic-bezier(0.32,0.72,0,1)',
           background: '#FFFFFF',
+          position: 'relative',
+          zIndex: 2,
           userSelect: 'none',
           cursor: isOpen ? 'pointer' : 'default',
         }}
@@ -254,6 +300,7 @@ const TxRow: React.FC<TxRowProps> = ({
             height: '0.5px',
             background: 'rgba(60, 60, 67, 0.20)',
             pointerEvents: 'none',
+            zIndex: 3,
           }}
         />
       )}
@@ -275,14 +322,20 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   // Close open row when clicking anywhere outside
   useEffect(() => {
     if (!openTxId) return;
-    const handlePointerDown = (e: PointerEvent) => {
+    const handleOutside = (e: Event) => {
       const target = e.target as HTMLElement;
       if (!target.closest(`[data-tx-id="${openTxId}"]`)) {
         setOpenTxId(null);
       }
     };
-    window.addEventListener('pointerdown', handlePointerDown);
-    return () => window.removeEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('touchstart', handleOutside, { passive: true });
+    window.addEventListener('mousedown', handleOutside);
+    window.addEventListener('pointerdown', handleOutside);
+    return () => {
+      window.removeEventListener('touchstart', handleOutside);
+      window.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('pointerdown', handleOutside);
+    };
   }, [openTxId]);
 
   const categoryMap = useMemo(() => {
