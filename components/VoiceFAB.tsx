@@ -13,6 +13,19 @@ const vibrate = (p: number | number[]) => {
   if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(p);
 };
 
+const cleanVietnameseSTTAnomalies = (rawText: string): string => {
+  if (!rawText) return '';
+  let text = rawText;
+  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s*(?:100|hóa|hoá)?\s*(?:xanh)/gi, 'Bách Hóa Xanh');
+  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s+(?:hóa|hoá)/gi, 'Bách Hóa');
+  text = text.replace(/^100\s+100\s+100$/gi, 'Bách Hóa Xanh');
+  text = text.replace(/bách\s+hoá\s+xanh/gi, 'Bách Hóa Xanh');
+  text = text.replace(/thế\s+di\s+động/gi, 'Thế Giới Di Động');
+  text = text.replace(/win\s*mart/gi, 'WinMart');
+  text = text.replace(/coop\s*mart/gi, 'Co.opmart');
+  return text;
+};
+
 export const VoiceFAB: React.FC<VoiceFABProps> = ({
   onTranscriptComplete,
   isProcessing = false,
@@ -38,7 +51,7 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
         r.onresult = (e: any) => {
           let t = '';
           for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
-          setTranscript(t);
+          setTranscript(cleanVietnameseSTTAnomalies(t));
         };
         r.onerror = (e: any) => {
           setIsListening(false);

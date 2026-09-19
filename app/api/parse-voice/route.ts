@@ -2,6 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
+// Clean Chrome Speech Recognition Vietnamese phonetic errors
+function cleanVietnameseSTTAnomalies(rawText: string): string {
+  if (!rawText) return '';
+  let text = rawText;
+
+  // 1. Chrome STT anomaly: "Bách Hóa Xanh" phonetics ("100 hóa xanh", "100 hoá xanh", "bắt 100 xanh", "bắp hóa xanh", "bát hóa xanh", "100 100 100")
+  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s*(?:100|hóa|hoá)?\s*(?:xanh)/gi, 'Bách Hóa Xanh');
+  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s+(?:hóa|hoá)/gi, 'Bách Hóa');
+  text = text.replace(/^100\s+100\s+100$/gi, 'Bách Hóa Xanh');
+  text = text.replace(/bách\s+hoá\s+xanh/gi, 'Bách Hóa Xanh');
+
+  // 2. Other store brand speech fixes
+  text = text.replace(/thế\s+di\s+động/gi, 'Thế Giới Di Động');
+  text = text.replace(/win\s*mart/gi, 'WinMart');
+  text = text.replace(/coop\s*mart/gi, 'Co.opmart');
+
+  return text;
+}
+
 // Rich Vietnamese semantic keyword dictionary with exact word-boundary safety
 const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
   'Di chuyển': [
@@ -16,7 +35,8 @@ const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
     'bánh mì', 'banh mi', 'lẩu', 'lau', 'nướng', 'nuong', 'quán ăn', 'quan an', 'nhà hàng', 'nha hang',
     'cà phê', 'ca phe', 'cafe', 'trà sữa', 'tra sua', 'sinh tố', 'nước ép', 'nước uống', 'nuoc uong',
     'ăn sáng', 'an sang', 'ăn trưa', 'an trua', 'ăn tối', 'an toi', 'ăn vặt', 'an vat', 'nhậu', 'nhau',
-    'bia', 'rượu', 'đi chợ', 'di cho', 'siêu thị', 'sieu thi', 'thịt', 'cá', 'rau', 'trái cây', 'đồ ăn'
+    'bia', 'rượu', 'đi chợ', 'di cho', 'siêu thị', 'sieu thi', 'thịt', 'cá', 'rau', 'trái cây', 'đồ ăn',
+    'bách hóa xanh', 'bach hoa xanh', 'bách hóa', 'bách hoá', '100 hóa xanh', '100 hoá xanh', 'winmart', 'coopmart'
   ],
   'Hóa đơn & Điện nước': [
     'hóa đơn', 'hoa don', 'tiền điện', 'tien dien', 'tiền nước', 'tien nuoc', 'điện', 'nước',
@@ -82,14 +102,17 @@ function formatYMD(dateInput?: Date | string | null): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, currentDate, categories } = await req.json();
+    const { text: rawText, currentDate, categories } = await req.json();
 
-    if (!text || typeof text !== 'string') {
+    if (!rawText || typeof rawText !== 'string') {
       return NextResponse.json(
         { error: 'Vui lòng cung cấp văn bản giọng nói' },
         { status: 400 }
       );
     }
+
+    // Pre-clean Chrome STT Vietnamese phonetic anomalies ("100 hóa xanh" -> "Bách Hóa Xanh")
+    const text = cleanVietnameseSTTAnomalies(rawText);
 
     const todayDateStr = formatYMD(currentDate);
     const apiKey = process.env.GEMINI_API_KEY?.trim();
