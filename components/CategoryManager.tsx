@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Category, TransactionType } from '@/lib/types';
-import { Plus, Trash2, FolderPlus, DollarSign, Layers } from 'lucide-react';
+import { Plus, Trash2, FolderPlus, DollarSign, Layers, Pencil, Check, X } from 'lucide-react';
 import { CategoryIcon } from '@/components/CategoryIcon3D';
 
 interface CategoryManagerProps {
@@ -26,10 +26,16 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [thumbIdx, setThumbIdx] = useState(0);
 
+  // Add state
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   const [color, setColor] = useState('#007AFF');
   const [budgetLimit, setBudgetLimit] = useState<number | ''>('');
+
+  // Edit state
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editBudgetLimit, setEditBudgetLimit] = useState<number | ''>('');
 
   const parentCategories = categories.filter((c) => c.type === activeTab && !c.parent_id);
 
@@ -48,6 +54,31 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
     setName(''); setBudgetLimit(''); setIsAdding(false);
   };
 
+  const startEdit = (cat: Category) => {
+    vibrate(8);
+    setEditingCatId(cat.id);
+    setEditName(cat.name);
+    setEditBudgetLimit(cat.budget_limit || '');
+  };
+
+  const cancelEdit = () => {
+    vibrate(6);
+    setEditingCatId(null);
+    setEditName('');
+    setEditBudgetLimit('');
+  };
+
+  const handleSaveEdit = (cat: Category) => {
+    if (!editName.trim()) return;
+    vibrate(15);
+    onUpdateCategory({
+      ...cat,
+      name: editName.trim(),
+      budget_limit: editBudgetLimit !== '' ? Number(editBudgetLimit) : null,
+    });
+    setEditingCatId(null);
+  };
+
   const formatVND = (val?: number | null) =>
     val ? new Intl.NumberFormat('vi-VN').format(val) + '\u00a0₫' : 'Chưa đặt hạn mức';
 
@@ -55,6 +86,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
     vibrate(8);
     setThumbIdx(idx);
     setActiveTab(type);
+    cancelEdit();
   };
 
   /* ── Shared input style ── */
@@ -149,101 +181,96 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                 onChange={(e) => setName(e.target.value)}
                 placeholder="VD: Cà phê, Quần áo..."
                 required
-                aria-label="Tên danh mục"
                 style={inputStyle}
               />
             </div>
 
-            <div>
-              <label className="type-caption" style={{ color: 'var(--label-secondary)', display: 'block', marginBottom: 6 }}>
-                Thuộc Nhóm Mẹ
-              </label>
-              <select
-                value={parentId || ''}
-                onChange={(e) => setParentId(e.target.value || null)}
-                aria-label="Chọn nhóm mẹ"
-                style={inputStyle}
-              >
-                {parentCategories.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {activeTab === 'expense' && (
+            {parentCategories.length > 0 && (
               <div>
                 <label className="type-caption" style={{ color: 'var(--label-secondary)', display: 'block', marginBottom: 6 }}>
-                  Ngân sách tháng (VND)
+                  Thuộc nhóm mẹ
                 </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={budgetLimit ? new Intl.NumberFormat('vi-VN').format(Number(budgetLimit)) : ''}
-                  onChange={(e) => {
-                    const d = e.target.value.replace(/\D/g, '');
-                    setBudgetLimit(d ? Number(d) : '');
-                  }}
-                  placeholder="VD: 3.000.000"
-                  aria-label="Ngân sách tháng"
+                <select
+                  value={parentId || parentCategories[0]?.id || ''}
+                  onChange={(e) => setParentId(e.target.value)}
                   style={inputStyle}
-                />
+                >
+                  {parentCategories.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              type="submit"
-              className="press-scale"
-              aria-label="Lưu danh mục"
-              style={{
-                padding: '10px 24px',
-                borderRadius: 9999,
-                fontFamily: 'inherit',
-                fontSize: 15,
-                fontWeight: 600,
-                color: '#fff',
-                background: 'var(--blue)',
-                boxShadow: '0 4px 12px rgba(0,122,255,0.28)',
-                minHeight: 44,
-              }}
-            >
-              Lưu Danh Mục
-            </button>
-          </div>
+          {activeTab === 'expense' && (
+            <div>
+              <label className="type-caption" style={{ color: 'var(--label-secondary)', display: 'block', marginBottom: 6 }}>
+                Hạn mức chi tiêu tháng (VND)
+              </label>
+              <input
+                type="number"
+                value={budgetLimit}
+                onChange={(e) => setBudgetLimit(e.target.value ? Number(e.target.value) : '')}
+                placeholder="VD: 5000000 (Để trống nếu không đặt)"
+                style={inputStyle}
+              />
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="press-scale"
+            style={{
+              alignSelf: 'flex-end',
+              padding: '10px 20px',
+              borderRadius: 12,
+              fontFamily: 'inherit',
+              fontSize: 15,
+              fontWeight: 600,
+              letterSpacing: '-0.23px',
+              color: '#fff',
+              background: 'var(--blue)',
+              border: 'none',
+              boxShadow: '0 4px 14px rgba(0,122,255,0.30)',
+            }}
+          >
+            Lưu Danh Mục
+          </button>
         </form>
       ) : (
         <button
-          onClick={() => { setParentId(parentCategories[0]?.id || null); setIsAdding(true); }}
+          type="button"
+          onClick={() => { vibrate(8); setIsAdding(true); }}
           className="press-scale"
-          aria-label={`Thêm danh mục ${activeTab === 'expense' ? 'chi tiêu' : 'thu nhập'} mới`}
           style={{
+            alignSelf: 'flex-start',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            background: 'color-mix(in srgb, var(--blue) 10%, transparent)',
-            color: 'var(--blue)',
-            borderRadius: 14,
-            padding: '12px 16px',
+            gap: 6,
+            padding: '10px 18px',
+            borderRadius: 12,
+            fontFamily: 'inherit',
             fontSize: 15,
             fontWeight: 600,
-            fontFamily: 'inherit',
-            width: 'fit-content',
-            minHeight: 44,
+            letterSpacing: '-0.23px',
+            color: 'var(--blue)',
+            background: 'color-mix(in srgb, var(--blue) 10%, transparent)',
+            border: 'none',
           }}
         >
           <Plus style={{ width: 16, height: 16 }} strokeWidth={2.2} aria-hidden="true" />
-          Thêm danh mục {activeTab === 'expense' ? 'chi tiêu' : 'thu nhập'} mới
+          Thêm danh mục {activeTab === 'expense' ? 'chi tiêu' : 'thu nhập'}
         </button>
       )}
 
-      {/* Category tree */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+      {/* Category List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {parentCategories.map((parent) => {
           const children = categories.filter((c) => c.parent_id === parent.id);
           return (
             <div key={parent.id} className="card-solid" style={{ padding: 16 }}>
-              {/* Parent header */}
+              {/* Parent Header */}
               <div
                 style={{
                   display: 'flex',
@@ -275,50 +302,212 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
               </div>
 
               {/* Children */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {children.map((child) => (
-                  <div
-                    key={child.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'var(--fill-quaternary)',
-                      borderRadius: 10,
-                      padding: '10px 12px',
-                    }}
-                    role="listitem"
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <CategoryIcon categoryName={child.name} iconName={child.icon} size="sm" />
-                        <span className="type-subhead" style={{ color: 'var(--label)', fontWeight: 500 }}>
-                          {child.name}
-                        </span>
-                      </div>
-                      {child.type === 'expense' && (
-                        <p className="type-footnote" style={{ color: 'var(--label-secondary)', marginTop: 2, paddingLeft: 14 }}>
-                          Hạn mức: {formatVND(child.budget_limit)}
-                        </p>
-                      )}
-                    </div>
+                  <React.Fragment key={child.id}>
+                    {editingCatId === child.id ? (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); handleSaveEdit(child); }}
+                        className="animate-slide-up"
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          border: '1.5px solid var(--blue)',
+                          borderRadius: 14,
+                          padding: 14,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                          boxShadow: '0 4px 16px rgba(0,122,255,0.15)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span className="type-subhead" style={{ color: 'var(--blue)', fontWeight: 600 }}>
+                            Chỉnh sửa danh mục
+                          </span>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="type-footnote"
+                            style={{ color: 'var(--label-secondary)' }}
+                          >
+                            Hủy
+                          </button>
+                        </div>
 
-                    <button
-                      onClick={() => { vibrate([10, 40, 10]); onDeleteCategory(child.id); }}
-                      aria-label={`Xóa danh mục ${child.name}`}
-                      className="press-scale"
-                      style={{
-                        width: 32, height: 32,
-                        borderRadius: '50%',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: 'var(--label-tertiary)',
-                        minHeight: 44,
-                        minWidth: 44,
-                      }}
-                    >
-                      <Trash2 style={{ width: 15, height: 15 }} strokeWidth={2} aria-hidden="true" />
-                    </button>
-                  </div>
+                        <div>
+                          <label className="type-caption" style={{ color: 'var(--label-secondary)', display: 'block', marginBottom: 4 }}>
+                            Tên danh mục *
+                          </label>
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            required
+                            style={inputStyle}
+                          />
+                        </div>
+
+                        {child.type === 'expense' && (
+                          <div>
+                            <label className="type-caption" style={{ color: 'var(--label-secondary)', display: 'block', marginBottom: 4 }}>
+                              Hạn mức chi tiêu hàng tháng (VND)
+                            </label>
+                            <input
+                              type="number"
+                              value={editBudgetLimit}
+                              onChange={(e) => setEditBudgetLimit(e.target.value ? Number(e.target.value) : '')}
+                              placeholder="VD: 5000000"
+                              style={inputStyle}
+                            />
+                            {/* Quick budget presets */}
+                            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                              {[
+                                { label: '1Tr', val: 1000000 },
+                                { label: '2Tr', val: 2000000 },
+                                { label: '3Tr', val: 3000000 },
+                                { label: '5Tr', val: 5000000 },
+                                { label: '10Tr', val: 10000000 },
+                              ].map((p) => (
+                                <button
+                                  key={p.label}
+                                  type="button"
+                                  onClick={() => setEditBudgetLimit(p.val)}
+                                  className="press-scale"
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    padding: '5px 10px',
+                                    borderRadius: 8,
+                                    background: editBudgetLimit === p.val ? 'var(--blue)' : 'var(--fill-tertiary)',
+                                    color: editBudgetLimit === p.val ? '#fff' : 'var(--label-secondary)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {p.label}
+                                </button>
+                              ))}
+                              {editBudgetLimit !== '' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditBudgetLimit('')}
+                                  className="press-scale"
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    padding: '5px 10px',
+                                    borderRadius: 8,
+                                    background: 'rgba(255, 59, 48, 0.12)',
+                                    color: 'var(--red)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Xóa hạn mức
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="press-scale"
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 10,
+                              background: 'var(--fill-tertiary)',
+                              color: 'var(--label-secondary)',
+                              fontWeight: 600,
+                              fontSize: 13,
+                              border: 'none',
+                            }}
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="submit"
+                            className="press-scale"
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: 10,
+                              background: 'var(--blue)',
+                              color: '#fff',
+                              fontWeight: 600,
+                              fontSize: 13,
+                              border: 'none',
+                              boxShadow: '0 2px 8px rgba(0,122,255,0.25)',
+                            }}
+                          >
+                            Lưu Thay Đổi
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'var(--fill-quaternary)',
+                          borderRadius: 10,
+                          padding: '10px 12px',
+                        }}
+                        role="listitem"
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <CategoryIcon categoryName={child.name} iconName={child.icon} size="sm" />
+                            <span className="type-subhead" style={{ color: 'var(--label)', fontWeight: 500 }}>
+                              {child.name}
+                            </span>
+                          </div>
+                          {child.type === 'expense' && (
+                            <p className="type-footnote" style={{ color: 'var(--label-secondary)', marginTop: 2, paddingLeft: 14 }}>
+                              Hạn mức: {formatVND(child.budget_limit)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            onClick={() => startEdit(child)}
+                            aria-label={`Sửa danh mục ${child.name}`}
+                            className="press-scale"
+                            style={{
+                              width: 32, height: 32,
+                              borderRadius: '50%',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: 'var(--blue)',
+                              background: 'color-mix(in srgb, var(--blue) 10%, transparent)',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Pencil style={{ width: 14, height: 14 }} strokeWidth={2} aria-hidden="true" />
+                          </button>
+
+                          <button
+                            onClick={() => { vibrate([10, 40, 10]); onDeleteCategory(child.id); }}
+                            aria-label={`Xóa danh mục ${child.name}`}
+                            className="press-scale"
+                            style={{
+                              width: 32, height: 32,
+                              borderRadius: '50%',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: 'var(--label-tertiary)',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Trash2 style={{ width: 14, height: 14 }} strokeWidth={2} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))}
                 {children.length === 0 && (
                   <p className="type-footnote" style={{ color: 'var(--label-tertiary)', padding: '8px 0', textAlign: 'center' }}>

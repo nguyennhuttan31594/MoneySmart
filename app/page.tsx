@@ -323,8 +323,25 @@ export default function Home() {
     setCategories((prev) => [...prev, createdCat]);
   };
 
-  const handleUpdateCategory = (updatedCat: Category) => {
-    setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+  const handleUpdateCategory = async (updatedCat: Category) => {
+    if (isSupabaseConfigured && supabase) {
+      console.log('[Supabase Update Category Payload]:', updatedCat);
+      const { data, error } = await supabase.from('categories').update({
+        name: updatedCat.name,
+        color: updatedCat.color,
+        budget_limit: updatedCat.budget_limit,
+        updated_at: new Date().toISOString(),
+      }).eq('id', updatedCat.id).select();
+      if (error) console.error('[Supabase Update Category Error]:', error);
+      if (data && data[0]) {
+        console.log('[Supabase Update Category Success]:', data[0]);
+      }
+    }
+    setCategories((prev) => {
+      const updated = prev.map((c) => (c.id === updatedCat.id ? updatedCat : c));
+      localStorage.setItem('moneysmartflow_categories', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleDeleteCategory = async (id: string) => {
