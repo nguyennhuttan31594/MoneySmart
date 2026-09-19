@@ -206,13 +206,13 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
         </div>
       </div>
 
-      {/* Inset separator: 16 (pad) + 40 (icon) + 12 (gap) = 68px */}
+      {/* Inset separator: 16 (pad) + 32 (icon) + 12 (gap) = 60px */}
       {!isLast && (
         <div
           style={{
             position: 'absolute',
             bottom: 0,
-            left: 68,
+            left: 60,
             right: 0,
             height: '0.5px',
             background: 'rgba(60, 60, 67, 0.20)',

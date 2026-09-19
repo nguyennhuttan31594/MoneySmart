@@ -68,9 +68,13 @@ html {
   height: 100%;
 }
 
-body {
-  /* systemGroupedBackground — always light iOS design */
+html, body, #root {
   background-color: #F2F2F7 !important;
+  min-height: 100dvh;
+}
+
+body {
+  margin: 0;
   color: #1C1C1E !important;
   font-family: "Inter", -apple-system, "SF Pro Text", system-ui, sans-serif;
   font-optical-sizing: auto;
@@ -78,7 +82,6 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100dvh;
 }
 
 /* Single unified container width across entire app (430px — iPhone 16 Pro Max) */
@@ -99,18 +102,16 @@ body {
 /* .glass-regular — nav bar, tab bar, input FAB */
 .glass-regular {
   position: relative;
-  background: var(--glass-bg-regular);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 0.5px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid rgba(0, 0, 0, 0.06);
   box-shadow:
-    0 12px 32px -8px rgba(0, 0, 0, 0.16),
-    0 2px 8px -2px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.80),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.20);
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 8px 24px -6px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.90);
   overflow: hidden;
   will-change: backdrop-filter;
-  transform: translateZ(0);
 }
 
 /* Specular highlight — diagonal light from top-left (NOT symmetric) */
@@ -380,7 +381,7 @@ body {
    ──────────────────────────────────────────────────────────────── */
 .tx-row {
   display: grid;
-  grid-template-columns: 40px 1fr auto;
+  grid-template-columns: 32px 1fr auto;
   column-gap: 12px;
   align-items: center;
   padding: 10px 16px;
@@ -401,12 +402,12 @@ body {
   transition: background 250ms var(--ease-standard);
 }
 
-/* Separator — starts at EXACT 68px (16px pad + 40px icon + 12px gap) */
+/* Separator — starts at EXACT 60px (16px pad + 32px icon + 12px gap) */
 .tx-row + .tx-row::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 68px;   /* 16 + 40 + 12 = 68px */
+  left: 60px;   /* 16 + 32 + 12 = 60px */
   right: 0;
   height: 0.5px;
   background: rgba(60, 60, 67, 0.20);
@@ -414,8 +415,8 @@ body {
 
 /* Icon container */
 .tx-icon {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -431,7 +432,6 @@ body {
   top: 0;
   z-index: 40;
   will-change: backdrop-filter, background;
-  transform: translateZ(0);
   transition:
     background 250ms var(--ease-standard),
     backdrop-filter 250ms var(--ease-standard),
@@ -450,10 +450,10 @@ body {
 
 /* Glass when scrolled */
 .app-header.scrolled {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(248, 248, 250, 0.80);
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border-bottom: 0.5px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.10);
   box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.04);
 }
 
