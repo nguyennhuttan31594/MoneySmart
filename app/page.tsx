@@ -91,12 +91,17 @@ export default function Home() {
       if (isSupabaseConfigured && supabase) {
         try {
           // Fetch categories
-          const { data: catData } = await supabase.from('categories').select('*');
+          const { data: catData, error: catErr } = await supabase.from('categories').select('*');
+          console.log('[Supabase Fetch Categories] Data:', catData, 'Error:', catErr);
+          if (catErr) console.error('[Supabase Fetch Categories Error]', catErr);
+
           if (catData && catData.length > 0) {
             setCategories(catData);
             localStorage.setItem('moneysmartflow_categories', JSON.stringify(catData));
           } else {
-            await supabase.from('categories').upsert(DEFAULT_CATEGORIES);
+            console.log('[Supabase Seeding Categories...]');
+            const { error: seedErr } = await supabase.from('categories').upsert(DEFAULT_CATEGORIES);
+            if (seedErr) console.error('[Supabase Seed Categories Error]', seedErr);
           }
 
           // Fetch transactions
@@ -104,6 +109,9 @@ export default function Home() {
             .from('transactions')
             .select('*')
             .order('transaction_date', { ascending: false });
+
+          console.log('[Supabase Fetch Transactions] Rows:', txData?.length, 'Data:', txData, 'Error:', txErr);
+          if (txErr) console.error('[Supabase Fetch Transactions Error]', txErr);
 
           if (!txErr && txData) {
             let finalTxs = [...txData];
@@ -114,7 +122,8 @@ export default function Home() {
             );
 
             if (realLocalUnsynced.length > 0) {
-              const { data: uploaded } = await supabase.from('transactions').insert(
+              console.log('[Supabase Uploading Unsynced Local Txs]:', realLocalUnsynced);
+              const { data: uploaded, error: uploadErr } = await supabase.from('transactions').insert(
                 realLocalUnsynced.map((t) => ({
                   category_id: t.category_id,
                   amount: t.amount,
@@ -124,6 +133,9 @@ export default function Home() {
                   transaction_date: t.transaction_date,
                 }))
               ).select();
+
+              console.log('[Supabase Upload Unsynced Result] Data:', uploaded, 'Error:', uploadErr);
+              if (uploadErr) console.error('[Supabase Upload Unsynced Error]', uploadErr);
 
               if (uploaded && uploaded.length > 0) {
                 const remoteIds = new Set(txData.map((t) => t.id));
@@ -138,7 +150,7 @@ export default function Home() {
             localStorage.setItem('moneysmartflow_transactions', JSON.stringify(finalTxs));
           }
         } catch (err) {
-          console.error('Supabase load error:', err);
+          console.error('Supabase load exception:', err);
         }
       }
 
@@ -165,16 +177,17 @@ export default function Home() {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
+    console.log('[Supabase Realtime] Subscribing to postgres_changes on table transactions...');
     const channel = supabase
       .channel('realtime_transactions_sync')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transactions' },
         (payload) => {
+          console.log('[Supabase Realtime Event Received]:', payload.eventType, payload);
           if (payload.eventType === 'INSERT') {
             const newTx = payload.new as Transaction;
             setTransactions((prev) => {
-              // Replace temp optimistic tx or add new
               const exists = prev.some((t) => t.id === newTx.id);
               if (exists) return prev;
               const filtered = prev.filter(
@@ -203,7 +216,9 @@ export default function Home() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Supabase Realtime Channel Status]:', status);
+      });
 
     return () => {
       supabase?.removeChannel(channel);
@@ -274,24 +289,28 @@ export default function Home() {
 
     // 2. Insert directly into Supabase database table
     if (isSupabaseConfigured && supabase) {
+      const insertPayload = {
+        category_id: newTxRecord.category_id,
+        amount: newTxRecord.amount,
+        type: newTxRecord.type,
+        description: newTxRecord.description,
+        raw_text: newTxRecord.raw_text,
+        transaction_date: newTxRecord.transaction_date,
+      };
+      console.log('[Supabase Inserting Transaction Payload]:', insertPayload);
       try {
         const { data, error } = await supabase
           .from('transactions')
-          .insert([
-            {
-              category_id: newTxRecord.category_id,
-              amount: newTxRecord.amount,
-              type: newTxRecord.type,
-              description: newTxRecord.description,
-              raw_text: newTxRecord.raw_text,
-              transaction_date: newTxRecord.transaction_date,
-            },
-          ])
+          .insert([insertPayload])
           .select();
 
+        console.log('[Supabase Insert Transaction Response] Data:', data, 'Error:', error);
+
         if (error) {
-          console.error('Supabase insert transaction error:', error);
+          console.error('[Supabase Insert Transaction Error]:', error);
+          alert('Lỗi lưu Supabase: ' + error.message);
         } else if (data && data[0]) {
+          console.log('[Supabase Insert Transaction Success]:', data[0]);
           // Replace temp ID with real Supabase database row ID
           setTransactions((prev) => {
             const replaced = prev.map((t) => (t.id === tempId ? data[0] : t));
@@ -300,7 +319,7 @@ export default function Home() {
           });
         }
       } catch (err) {
-        console.error('Supabase insert exception:', err);
+        console.error('[Supabase Insert Exception]:', err);
       }
     }
   };
@@ -311,7 +330,10 @@ export default function Home() {
     const createdCat: Category = { ...newCat, id: catId };
 
     if (isSupabaseConfigured && supabase) {
-      const { data } = await supabase.from('categories').insert([newCat]).select();
+      console.log('[Supabase Add Category Payload]:', newCat);
+      const { data, error } = await supabase.from('categories').insert([newCat]).select();
+      console.log('[Supabase Add Category Response] Data:', data, 'Error:', error);
+      if (error) console.error('[Supabase Add Category Error]:', error);
       if (data && data[0]) {
         setCategories((prev) => [...prev, data[0]]);
         return;
@@ -326,14 +348,18 @@ export default function Home() {
 
   const handleDeleteCategory = async (id: string) => {
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('categories').delete().eq('id', id);
+      console.log('[Supabase Delete Category ID]:', id);
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) console.error('[Supabase Delete Category Error]:', error);
     }
     setCategories((prev) => prev.filter((c) => c.id !== id));
   };
 
   const handleDeleteTransaction = async (id: string) => {
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('transactions').delete().eq('id', id);
+      console.log('[Supabase Delete Transaction ID]:', id);
+      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      if (error) console.error('[Supabase Delete Transaction Error]:', error);
     }
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
