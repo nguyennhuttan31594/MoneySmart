@@ -262,37 +262,24 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
 
 // Smart robust amount parsing for Vietnamese voice & text inputs
 function parseVnAmount(val: any, rawText: string): number {
-  if (typeof val === 'number' && !isNaN(val) && val > 0) {
-    return val < 1000 ? val * 1000 : val;
-  }
-  if (typeof val === 'string' && val.trim() !== '') {
-    const cleaned = val.replace(/[^\d.]/g, '');
-    const num = parseFloat(cleaned);
-    if (!isNaN(num) && num > 0) {
-      return num < 1000 ? num * 1000 : num;
-    }
-  }
+  const text = (rawText || '').toLowerCase().trim();
 
-  const lower = (rawText || '').toLowerCase();
+  // Word-to-number map
   const wordMap: { [key: string]: number } = {
-    'một': 1, 'mot': 1,
+    'không': 0, 'khong': 0,
+    'một': 1, 'mot': 1, 'mốt': 1,
     'hai': 2,
     'ba': 3,
-    'bốn': 4, 'bon': 4,
-    'năm': 5, 'nam': 5,
+    'bốn': 4, 'bon': 4, 'tư': 4, 'tu': 4,
+    'năm': 5, 'nam': 5, 'lăm': 5, 'lam': 5, 'nhăm': 5,
     'sáu': 6, 'sau': 6,
     'bảy': 7, 'bay': 7,
     'tám': 8, 'tam': 8,
     'chín': 9, 'chin': 9,
-    'mười': 10, 'muoi': 10,
+    'mười': 10, 'muoi': 10, 'chục': 10, 'mươi': 10,
+    'trăm': 100, 'tram': 100,
     'nửa': 0.5, 'nua': 0.5,
   };
-
-  const cuMatch = lower.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(củ|cu|triệu|trieu|tr)/i);
-  if (cuMatch) {
-    const numPart = wordMap[cuMatch[1].toLowerCase()] || parseFloat(cuMatch[1].replace(',', '.'));
-    if (!isNaN(numPart)) return numPart * 1000000;
-  }
 
   const kMatch = lower.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(k|ngàn|ngan|nghìn|nghin)/i);
   if (kMatch) {
