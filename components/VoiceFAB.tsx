@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Loader2, SendHorizonal } from 'lucide-react';
+import { Mic, MicOff, Loader2, SendHorizonal, X } from 'lucide-react';
 
 interface VoiceFABProps {
   onTranscriptComplete: (transcript: string) => void;
@@ -70,6 +70,7 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
       if (!recognitionRef.current) { setErrorMsg('Trình duyệt chưa hỗ trợ giọng nói.'); return; }
       try {
         setErrorMsg(null);
+        setTranscript(''); // Auto clear previous text when starting new voice recording!
         inputRef.current?.focus();
         recognitionRef.current.start();
       } catch (e) { console.error(e); }
@@ -191,7 +192,38 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
           />
 
           {/* Action buttons wrapper */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, zIndex: 2, alignSelf: isFocused ? 'flex-end' : 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, zIndex: 2, alignSelf: isFocused ? 'flex-end' : 'center' }}>
+            {/* 1-Tap Clear button (X) when hasContent is true */}
+            {hasContent && (
+              <button
+                type="button"
+                onClick={() => {
+                  vibrate(6);
+                  setTranscript('');
+                  setErrorMsg(null);
+                  inputRef.current?.focus();
+                }}
+                aria-label="Xóa nội dung"
+                className="press-scale"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'rgba(142, 142, 147, 0.22)',
+                  color: 'rgba(60, 60, 67, 0.75)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  transition: 'all 200ms ease',
+                }}
+              >
+                <X style={{ width: 16, height: 16 }} strokeWidth={2.5} />
+              </button>
+            )}
+
             {/* Mic button — 44px circle, icon 22px */}
             <button
               type="button"
