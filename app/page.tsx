@@ -71,7 +71,7 @@ export default function Home() {
     async function loadData() {
       // 1. Read cached data from LocalStorage first for instant render
       let localCats: Category[] = DEFAULT_CATEGORIES;
-      let localTxs: Transaction[] = INITIAL_TRANSACTIONS;
+      let localTxs: Transaction[] = [];
 
       try {
         const rawLocalCats = localStorage.getItem('moneysmartflow_categories') || localStorage.getItem('moneyflow_categories');
@@ -83,9 +83,11 @@ export default function Home() {
       }
 
       setCategories(localCats);
-      setTransactions(localTxs);
+      if (localTxs.length > 0) {
+        setTransactions(localTxs);
+      }
 
-      // 2. Fetch from Supabase and merge with local data
+      // 2. Fetch from Supabase as absolute source of truth
       if (isSupabaseConfigured && supabase) {
         try {
           // Fetch categories
@@ -104,19 +106,16 @@ export default function Home() {
             .order('transaction_date', { ascending: false });
 
           if (!txErr && txData) {
-            if (txData.length > 0) {
-              // Merge Supabase txData with local-only transactions (avoiding duplicates)
-              const remoteIds = new Set(txData.map((t) => t.id));
-              const localOnly = localTxs.filter((t) => !remoteIds.has(t.id));
-              const merged = [...txData, ...localOnly].sort(
-                (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
-              );
-              setTransactions(merged);
-              localStorage.setItem('moneysmartflow_transactions', JSON.stringify(merged));
-            } else if (localTxs.length > 0) {
-              // Supabase empty, seed localTxs to Supabase
-              const { data: seeded } = await supabase.from('transactions').insert(
-                localTxs.map((t) => ({
+            let finalTxs = [...txData];
+
+            // Auto-upload any unsynced local transactions (starts with tx-) to Supabase
+            const unsyncedLocal = localTxs.filter(
+              (lt) => lt.id.startsWith('tx-') && !INITIAL_TRANSACTIONS.some((it) => it.id === lt.id)
+            );
+
+            if (unsyncedLocal.length > 0) {
+              const { data: uploaded } = await supabase.from('transactions').insert(
+                unsyncedLocal.map((t) => ({
                   category_id: t.category_id,
                   amount: t.amount,
                   type: t.type,
@@ -126,11 +125,17 @@ export default function Home() {
                 }))
               ).select();
 
-              if (seeded && seeded.length > 0) {
-                setTransactions(seeded);
-                localStorage.setItem('moneysmartflow_transactions', JSON.stringify(seeded));
+              if (uploaded && uploaded.length > 0) {
+                const uploadedIds = new Set(uploaded.map((u) => u.id));
+                const remoteIds = new Set(txData.map((t) => t.id));
+                finalTxs = [...uploaded, ...txData.filter((t) => !uploadedIds.has(t.id))].sort(
+                  (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+                );
               }
             }
+
+            setTransactions(finalTxs);
+            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(finalTxs));
           }
         } catch (err) {
           console.error('Supabase load error:', err);
