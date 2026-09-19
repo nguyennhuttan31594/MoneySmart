@@ -349,13 +349,6 @@ function parseVnAmount(val: any, rawText: string): number {
     return (head + tail * 10) * 1000;
   }
 
-  // STT Rule 3: Chrome STT bare 2-digit numbers 11..19 without units ("mua mắt kính 18" -> 180k, "mua mắt kính 14" -> 140k)
-  const bareTeenMatch = text.match(/(?:^|\s)(1[1-9])(?:\s+|$)/i);
-  if (bareTeenMatch) {
-    const teenVal = parseInt(bareTeenMatch[1], 10);
-    return teenVal * 10000; // 18 -> 180000, 14 -> 140000
-  }
-
   // 1. Direct numeric value from AI safety check
   if (typeof val === 'number' && !isNaN(val) && val > 0) {
     return val < 1000 ? val * 1000 : val;
