@@ -12,13 +12,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" style={{ colorScheme: 'light' }}>
       <body
         style={{
           minHeight: '100dvh',
-          background: 'var(--bg-grouped)',
-          color: 'var(--label)',
-          WebkitFontSmoothing: 'antialiased',
+          backgroundColor: '#F2F2F7',  /* hardcoded — no CSS var, no dark mode override */
+          color: '#1C1C1E',
+          WebkitFontSmoothing: 'antialiased' as any,
+          MozOsxFontSmoothing: 'grayscale' as any,
         }}
       >
         {children}

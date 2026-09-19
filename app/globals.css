@@ -11,6 +11,9 @@
    SECTION 1 — DESIGN TOKENS
    ──────────────────────────────────────────────────────────────── */
 :root {
+  /* Force light mode — MoneySmartflow uses iOS light design */
+  color-scheme: light;
+
   /* Background */
   --bg-grouped:       #F2F2F7;
   --bg-elevated:      #FFFFFF;
@@ -47,59 +50,8 @@
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-[data-theme="dark"] {
-  --bg-grouped:       #000000;
-  --bg-elevated:      #1C1C1E;
-  --bg-elevated-2:    #2C2C2E;
-  --fill-quaternary:  rgba(118, 118, 128, 0.18);
+/* Dark mode intentionally removed — MoneySmartflow is a light-mode iOS design */
 
-  --label:            #FFFFFF;
-  --label-secondary:  rgba(235, 235, 245, 0.60);
-  --label-tertiary:   rgba(235, 235, 245, 0.30);
-  --separator:        rgba(84, 84, 88, 0.65);
-
-  --blue:   #0A84FF;
-  --green:  #30D158;
-  --red:    #FF453A;
-  --orange: #FF9F0A;
-  --indigo: #5E5CE6;
-  --purple: #BF5AF2;
-  --pink:   #FF375F;
-  --teal:   #40C8E0;
-  --yellow: #FFD60A;
-
-  --glass-bg-regular:  rgba(30, 30, 32, 0.72);
-  --glass-bg-thin:     rgba(30, 30, 32, 0.60);
-  --glass-bg-thick:    rgba(20, 20, 22, 0.85);
-  --glass-border:      rgba(255, 255, 255, 0.10);
-}
-
-/* Dark mode via system preference as fallback */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg-grouped:       #000000;
-    --bg-elevated:      #1C1C1E;
-    --bg-elevated-2:    #2C2C2E;
-    --fill-quaternary:  rgba(118, 118, 128, 0.18);
-    --label:            #FFFFFF;
-    --label-secondary:  rgba(235, 235, 245, 0.60);
-    --label-tertiary:   rgba(235, 235, 245, 0.30);
-    --separator:        rgba(84, 84, 88, 0.65);
-    --blue:   #0A84FF;
-    --green:  #30D158;
-    --red:    #FF453A;
-    --orange: #FF9F0A;
-    --indigo: #5E5CE6;
-    --purple: #BF5AF2;
-    --pink:   #FF375F;
-    --teal:   #40C8E0;
-    --yellow: #FFD60A;
-    --glass-bg-regular:  rgba(30, 30, 32, 0.72);
-    --glass-bg-thin:     rgba(30, 30, 32, 0.60);
-    --glass-bg-thick:    rgba(20, 20, 22, 0.85);
-    --glass-border:      rgba(255, 255, 255, 0.10);
-  }
-}
 
 /* ────────────────────────────────────────────────────────────────
    SECTION 2 — GLOBAL RESET & TYPOGRAPHY
@@ -117,9 +69,9 @@ html {
 }
 
 body {
-  /* systemGroupedBackground — iOS #F2F2F7, NOT white, NOT dark */
+  /* systemGroupedBackground — always light iOS design */
   background-color: #F2F2F7 !important;
-  color: var(--label);
+  color: #1C1C1E !important;
   font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Inter var", system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
   text-rendering: optimizeLegibility;
