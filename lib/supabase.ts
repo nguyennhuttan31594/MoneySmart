@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 const ACTIVE_SUPABASE_URL = 'https://heoftqkifsgznbokcilh.supabase.co';
-const ACTIVE_SUPABASE_KEY = 'sb_publishable_d2Z6Ftb2ujegqi2V3rjedQ_4RFyrQoJ';
+const ACTIVE_SUPABASE_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhlb2Z0cWtpZnNnem5ib2tjaWxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3ODc3ODQsImV4cCI6MjEwNTM2Mzc4NH0.DZ7EVLXp_uDfEOjXTaZlc5IOc2TIp9QFAxImet1XBKc';
 
 let envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 let envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -10,7 +11,7 @@ let envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if (!envUrl || envUrl.includes('omdtsbimvdelrvqusksv')) {
   envUrl = ACTIVE_SUPABASE_URL;
 }
-if (!envKey || envKey.includes('omdtsbimvdelrvqusksv')) {
+if (!envKey || envKey.includes('omdtsbimvdelrvqusksv') || envKey.startsWith('sb_publishable')) {
   envKey = ACTIVE_SUPABASE_KEY;
 }
 
@@ -24,5 +25,6 @@ export const isSupabaseConfigured = Boolean(
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
 
 
