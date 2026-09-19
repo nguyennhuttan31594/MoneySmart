@@ -262,22 +262,59 @@ export default function Home() {
     <main
       style={{
         minHeight: '100dvh',
-        background: 'radial-gradient(circle at 15% 50%, #f1f2f6 0%, #e4e5ea 100%)',
+        background: [
+          'radial-gradient(ellipse at 10% 20%,  rgba(99,179,237,0.35)  0%, transparent 55%)',
+          'radial-gradient(ellipse at 90% 10%,  rgba(183,148,244,0.30) 0%, transparent 50%)',
+          'radial-gradient(ellipse at 80% 80%,  rgba(104,211,145,0.25) 0%, transparent 55%)',
+          'radial-gradient(ellipse at 20% 85%,  rgba(252,176,69,0.20)  0%, transparent 50%)',
+          'linear-gradient(160deg, #dde8f5 0%, #e8e2f5 40%, #d8f0e5 100%)',
+        ].join(','),
         backgroundAttachment: 'fixed',
         paddingBottom: 128,
         color: '#1C1C1E',
+        position: 'relative',
+        overflowX: 'hidden',
       }}
     >
+      {/* ── Decorative ambient blobs (fixed, z-0) ── */}
+      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        <div style={{
+          position: 'absolute', top: '-15%', left: '-10%',
+          width: 520, height: 520, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(99,179,237,0.45) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+        }} />
+        <div style={{
+          position: 'absolute', top: '5%', right: '-8%',
+          width: 420, height: 420, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(183,148,244,0.40) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '10%', right: '5%',
+          width: 380, height: 380, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(104,211,145,0.35) 0%, transparent 70%)',
+          filter: 'blur(55px)',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '5%', left: '5%',
+          width: 340, height: 340, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(252,176,69,0.28) 0%, transparent 70%)',
+          filter: 'blur(55px)',
+        }} />
+      </div>
+
       {/* ── Sticky Glass Header ── */}
       <header
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 30,
-          background: 'rgba(242,242,247,0.78)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-          borderBottom: '1px solid rgba(255,255,255,0.4)',
+          background: 'rgba(221,232,245,0.72)',
+          backdropFilter: 'blur(28px) saturate(220%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(220%)',
+          borderBottom: '1px solid rgba(255,255,255,0.55)',
+          boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.3), 0 2px 20px rgba(0,0,0,0.06)',
           padding: '12px 20px',
         }}
       >
@@ -341,8 +378,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Main Content ── */}
-      <div style={{ maxWidth: 896, margin: '0 auto', padding: '20px 16px 144px' }}>
+      {/* ── Main Content (z-10 above blobs) ── */}
+      <div style={{ maxWidth: 896, margin: '0 auto', padding: '20px 16px 144px', position: 'relative', zIndex: 10 }}>
         {activeTab === 'transactions' && (
           <TransactionFeed
             transactions={transactions}
