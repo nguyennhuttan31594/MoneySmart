@@ -102,6 +102,52 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
     cancelEdit();
   };
 
+  const handleSaveVoiceRule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!misspokenInput.trim() || !correctInput.trim()) return;
+    vibrate(15);
+    onAddVoiceRule({
+      misspoken_phrase: misspokenInput.trim(),
+      correct_phrase: correctInput.trim(),
+      category_id: selectedCatId || null,
+    });
+    setMisspokenInput('');
+    setCorrectInput('');
+    setSelectedCatId('');
+  };
+
+  const recordMisspokenVoice = () => {
+    if (typeof window === 'undefined') return;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert('Trình duyệt chưa hỗ trợ thu âm.');
+      return;
+    }
+    if (isRecordingMisspoken) {
+      recognitionRef.current?.stop();
+      setIsRecordingMisspoken(false);
+      return;
+    }
+    try {
+      const r = new SR();
+      r.continuous = false;
+      r.interimResults = true;
+      r.lang = 'vi-VN';
+      r.onstart = () => setIsRecordingMisspoken(true);
+      r.onresult = (e: any) => {
+        let t = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+        setMisspokenInput(t);
+      };
+      r.onerror = () => setIsRecordingMisspoken(false);
+      r.onend = () => setIsRecordingMisspoken(false);
+      recognitionRef.current = r;
+      r.start();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   /* ── Shared input style ── */
   const inputStyle: React.CSSProperties = {
     width: '100%',
