@@ -251,36 +251,98 @@ export default function Home() {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
+  /* ─── nav tab config ─── */
+  const navTabs = [
+    { id: 'transactions' as const, label: 'Nhật ký',   Icon: ListFilter },
+    { id: 'reports'      as const, label: 'Báo cáo',   Icon: PieChart   },
+    { id: 'categories'  as const, label: 'Danh mục',  Icon: Layers     },
+  ];
+
   return (
-    <main className="min-h-screen bg-white text-black pb-32">
-      {/* iOS Top Header Bar */}
-      <header className="sticky top-0 z-30 ios-glass-bar border-b border-black/[0.05] px-4 sm:px-8 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#007AFF] text-white rounded-2xl shadow-sm">
-              <Wallet className="w-6 h-6" strokeWidth={2} />
+    <main
+      style={{
+        minHeight: '100dvh',
+        background: 'radial-gradient(circle at 15% 50%, #f1f2f6 0%, #e4e5ea 100%)',
+        backgroundAttachment: 'fixed',
+        paddingBottom: 128,
+        color: '#1C1C1E',
+      }}
+    >
+      {/* ── Sticky Glass Header ── */}
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
+          background: 'rgba(242,242,247,0.78)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          borderBottom: '1px solid rgba(255,255,255,0.4)',
+          padding: '12px 20px',
+        }}
+      >
+        <div style={{ maxWidth: 896, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Logo mark */}
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, #007AFF 0%, #0A84FF 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(0,122,255,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+              }}
+            >
+              <Wallet style={{ width: 22, height: 22, color: '#fff' }} strokeWidth={2} />
             </div>
+
             <div>
-              <div className="flex items-center gap-2">
-                {/* Title: font-bold text-3xl tracking-tight */}
-                <h1 className="text-3xl font-bold tracking-tight text-black">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h1
+                  className="text-amount"
+                  style={{ fontSize: 22, color: '#1C1C1E' }}
+                >
                   MoneySmartflow
                 </h1>
-                {/* Database Compact Status Pill Badge */}
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold bg-white border border-black/[0.06] rounded-full px-2.5 py-0.5 shadow-sm text-[#8E8E93]">
-                  <span className="h-2 w-2 rounded-full bg-[#34C759] animate-pulse"></span>
+                {/* Live DB pill */}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background: 'rgba(255,255,255,0.7)',
+                    border: '1px solid rgba(0,0,0,0.07)',
+                    borderRadius: 99,
+                    padding: '2px 10px',
+                    color: '#86868B',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: isSupabaseConfigured ? '#32D74B' : '#FF9F0A',
+                      display: 'inline-block',
+                      animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite',
+                    }}
+                  />
                   {isSupabaseConfigured ? 'Supabase Live' : 'Local Storage'}
                 </span>
               </div>
-              {/* Subtitle: Slogan chính thức */}
-              <p className="text-xs text-[#8E8E93]">Quản lý tài chính cá nhân</p>
+              <p className="text-note" style={{ fontSize: 12, marginTop: 1 }}>Quản lý tài chính cá nhân</p>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content Body */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-36">
+      {/* ── Main Content ── */}
+      <div style={{ maxWidth: 896, margin: '0 auto', padding: '20px 16px 144px' }}>
         {activeTab === 'transactions' && (
           <TransactionFeed
             transactions={transactions}
@@ -288,11 +350,9 @@ export default function Home() {
             onDeleteTransaction={handleDeleteTransaction}
           />
         )}
-
         {activeTab === 'reports' && (
           <ReportsDashboard transactions={transactions} categories={categories} />
         )}
-
         {activeTab === 'categories' && (
           <CategoryManager
             categories={categories}
@@ -303,7 +363,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* Parsed Voice Sheet Preview Modal */}
+      {/* ── Modal ── */}
       <ParsedPreviewModal
         isOpen={isPreviewOpen}
         parsedData={parsedResult}
@@ -312,49 +372,76 @@ export default function Home() {
         onClose={() => setIsPreviewOpen(false)}
       />
 
-      {/* Fixed Bottom Container: Input Dock + Tab Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-3 pt-2 bg-gradient-to-t from-slate-100 via-slate-100/90 to-transparent pointer-events-none">
-        <div className="max-w-lg mx-auto space-y-2 pointer-events-auto">
-          {/* Always-visible Text & Voice Input Bar */}
+      {/* ── Fixed Bottom Dock ── */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+          padding: '0 12px 12px',
+          background: 'linear-gradient(to top, rgba(228,229,234,0.97) 60%, rgba(228,229,234,0) 100%)',
+          pointerEvents: 'none',
+        }}
+      >
+        <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'auto' }}>
+          {/* Voice / Text Input */}
           <VoiceFAB
             onTranscriptComplete={handleTranscriptComplete}
             isProcessing={isProcessingVoice}
           />
 
-          {/* Bottom iOS Navigation Tabs */}
-          <nav className="ios-glass-bar border border-black/[0.06] rounded-2xl px-8 py-2 shadow-lg flex items-center justify-around">
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`flex flex-col items-center gap-0.5 transition ${
-                activeTab === 'transactions' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
-              }`}
-            >
-              <ListFilter className="w-5 h-5" strokeWidth={2} />
-              <span className="text-[10px] font-bold">Nhật ký</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`flex flex-col items-center gap-0.5 transition ${
-                activeTab === 'reports' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
-              }`}
-            >
-              <PieChart className="w-5 h-5" strokeWidth={2} />
-              <span className="text-[10px] font-bold">Báo cáo</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('categories')}
-              className={`flex flex-col items-center gap-0.5 transition ${
-                activeTab === 'categories' ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-black'
-              }`}
-            >
-              <Layers className="w-5 h-5" strokeWidth={2} />
-              <span className="text-[10px] font-bold">Danh mục</span>
-            </button>
+          {/* Bottom Tab Navigation */}
+          <nav
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-around',
+              background: 'rgba(255,255,255,0.72)',
+              backdropFilter: 'blur(24px) saturate(200%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(200%)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 24px rgba(0,0,0,0.1)',
+              borderRadius: 22,
+              padding: '6px 8px',
+            }}
+          >
+            {navTabs.map(({ id, label, Icon }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 3,
+                    padding: '6px 4px',
+                    borderRadius: 14,
+                    color: isActive ? '#007AFF' : '#86868B',
+                    background: isActive ? 'rgba(0,122,255,0.1)' : 'transparent',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  <Icon style={{ width: 20, height: 20 }} strokeWidth={isActive ? 2.2 : 1.8} />
+                  <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500 }}>{label}</span>
+                </button>
+              );
+            })}
           </nav>
         </div>
       </div>
+
+      {/* Pulse animation */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
     </main>
   );
 }

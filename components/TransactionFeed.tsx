@@ -2,77 +2,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, Category } from '@/lib/types';
-import {
-  Search,
-  Trash2,
-  Calendar,
-  Tag,
-  Utensils,
-  Car,
-  Zap,
-  ShoppingBag,
-  Stethoscope,
-  Baby,
-  CreditCard,
-  Wallet,
-  TrendingUp,
-  Home,
-  GraduationCap,
-  Plane,
-} from 'lucide-react';
+import { Search, Trash2, Calendar, Tag } from 'lucide-react';
+import { CategoryIcon3D } from '@/components/CategoryIcon3D';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
   categories: Category[];
   onDeleteTransaction: (id: string) => void;
 }
-
-const renderCategoryIcon = (categoryName?: string, iconName?: string, isExpense: boolean = true) => {
-  const lowerName = (categoryName || '').toLowerCase();
-  const lowerIcon = (iconName || '').toLowerCase();
-
-  if (lowerName.includes('ăn uống') || lowerName.includes('cà phê') || lowerName.includes('ăn') || lowerIcon === 'utensils') {
-    return <Utensils className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('di chuyển') || lowerName.includes('xăng') || lowerName.includes('xe') || lowerIcon === 'car') {
-    return <Car className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('hóa đơn') || lowerName.includes('điện nước') || lowerIcon === 'zap') {
-    return <Zap className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('mua sắm') || lowerName.includes('giải trí') || lowerIcon === 'shoppingbag') {
-    return <ShoppingBag className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (
-    lowerName.includes('sức khỏe') ||
-    lowerName.includes('y tế') ||
-    lowerName.includes('bệnh') ||
-    lowerIcon === 'stethoscope' ||
-    lowerIcon === 'heartpulse'
-  ) {
-    return <Stethoscope className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('con cái') || lowerName.includes('trẻ em') || lowerIcon === 'baby') {
-    return <Baby className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('trả nợ') || lowerName.includes('vay') || lowerIcon === 'creditcard') {
-    return <CreditCard className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('học tập') || lowerName.includes('sách') || lowerIcon === 'graduationcap') {
-    return <GraduationCap className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('nhà ở') || lowerName.includes('tiền phòng') || lowerIcon === 'home') {
-    return <Home className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('du lịch') || lowerIcon === 'plane') {
-    return <Plane className="w-5 h-5" strokeWidth={2} />;
-  }
-  if (lowerName.includes('thu nhập') || lowerName.includes('lương') || !isExpense || lowerIcon === 'wallet') {
-    return <Wallet className="w-5 h-5" strokeWidth={2} />;
-  }
-
-  return isExpense ? <Tag className="w-5 h-5" strokeWidth={2} /> : <TrendingUp className="w-5 h-5" strokeWidth={2} />;
-};
 
 export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   transactions,
@@ -89,27 +26,21 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
     return map;
   }, [categories]);
 
-  // Filter transactions
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
       const matchesSearch =
         t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (t.raw_text && t.raw_text.toLowerCase().includes(searchQuery.toLowerCase()));
-
       const matchesCat = selectedCatId === 'all' || t.category_id === selectedCatId;
       const matchesType = selectedType === 'all' || t.type === selectedType;
-
       return matchesSearch && matchesCat && matchesType;
     });
   }, [transactions, searchQuery, selectedCatId, selectedType]);
 
-  // Group transactions by date
   const groupedTransactions = useMemo(() => {
     const groups: { [key: string]: { label: string; dateObj: Date; items: Transaction[] } } = {};
-
     const today = new Date();
     const todayStr = today.toDateString();
-
     const yesterday = new Date();
     yesterday.setDate(today.getDate() - 1);
     const yesterdayStr = yesterday.toDateString();
@@ -117,75 +48,101 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
     filteredTransactions.forEach((tx) => {
       const txDate = new Date(tx.transaction_date);
       const txDateStr = txDate.toDateString();
-
       let groupKey = txDateStr;
       let label = txDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-      if (txDateStr === todayStr) {
-        label = 'Hôm nay';
-      } else if (txDateStr === yesterdayStr) {
-        label = 'Hôm qua';
-      }
+      if (txDateStr === todayStr) label = 'Hôm nay';
+      else if (txDateStr === yesterdayStr) label = 'Hôm qua';
 
-      if (!groups[groupKey]) {
-        groups[groupKey] = { label, dateObj: txDate, items: [] };
-      }
+      if (!groups[groupKey]) groups[groupKey] = { label, dateObj: txDate, items: [] };
       groups[groupKey].items.push(tx);
     });
 
     return Object.values(groups).sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
   }, [filteredTransactions]);
 
-  const formatVND = (val: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-  };
+  const formatVND = (val: number) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
   const formatTimeOnly = (dateStr: string) => {
     try {
-      const d = new Date(dateStr);
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      return new Date(dateStr).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     } catch {
       return '';
     }
   };
 
   return (
-    <div className="apple-white-card p-6 space-y-6">
+    <div className="apple-white-card p-5 space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold text-xl text-black tracking-tight flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-[#007AFF]" strokeWidth={2} /> Nhật Ký Giao Dịch
+          <h2 className="text-cat text-xl text-black flex items-center gap-2">
+            <Calendar style={{ width: 20, height: 20, color: '#007AFF' }} strokeWidth={2} />
+            Nhật Ký Giao Dịch
           </h2>
-          <p className="text-xs text-[#8E8E93] mt-0.5">Sắp xếp theo dòng thời gian mới nhất</p>
+          <p className="text-note text-xs mt-0.5">Sắp xếp theo dòng thời gian mới nhất</p>
         </div>
-
-        <span className="text-xs font-semibold bg-[#F2F2F7] text-[#8E8E93] px-3.5 py-1 rounded-full border border-black/[0.04]">
+        <span
+          className="text-xs font-semibold px-3.5 py-1 rounded-full"
+          style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF' }}
+        >
           {filteredTransactions.length} giao dịch
         </span>
       </div>
 
       {/* Filter Controls */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Search input */}
+        {/* Search */}
         <div className="relative">
-          <Search className="w-4 h-4 text-[#8E8E93] absolute left-3.5 top-3" strokeWidth={2} />
+          <Search
+            style={{ width: 15, height: 15, color: '#86868B', position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
+            strokeWidth={2}
+          />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm kiếm nhật ký..."
-            className="w-full bg-[#F2F2F7] border border-black/[0.04] rounded-xl pl-9 pr-3 py-2 text-xs text-black placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition"
+            style={{
+              width: '100%',
+              background: 'rgba(118,118,128,0.1)',
+              border: '1px solid rgba(0,0,0,0.05)',
+              borderRadius: 12,
+              paddingLeft: 34,
+              paddingRight: 12,
+              paddingTop: 8,
+              paddingBottom: 8,
+              fontSize: 13,
+              color: '#1C1C1E',
+              outline: 'none',
+            }}
           />
         </div>
 
         {/* Category filter */}
         <div className="relative">
-          <Tag className="w-4 h-4 text-[#8E8E93] absolute left-3.5 top-3" strokeWidth={2} />
+          <Tag
+            style={{ width: 15, height: 15, color: '#86868B', position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }}
+            strokeWidth={2}
+          />
           <select
             value={selectedCatId}
             onChange={(e) => setSelectedCatId(e.target.value)}
-            className="w-full bg-[#F2F2F7] border border-black/[0.04] rounded-xl pl-9 pr-3 py-2 text-xs text-black focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition"
+            style={{
+              width: '100%',
+              background: 'rgba(118,118,128,0.1)',
+              border: '1px solid rgba(0,0,0,0.05)',
+              borderRadius: 12,
+              paddingLeft: 34,
+              paddingRight: 12,
+              paddingTop: 8,
+              paddingBottom: 8,
+              fontSize: 13,
+              color: '#1C1C1E',
+              outline: 'none',
+              appearance: 'none',
+            }}
           >
             <option value="all">Tất cả danh mục</option>
             {categories.map((c) => (
@@ -196,101 +153,104 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
           </select>
         </div>
 
-        {/* Type Segment Controls */}
-        <div className="flex items-center gap-1 p-1 bg-[#E5E5EA] rounded-xl">
-          <button
-            onClick={() => setSelectedType('all')}
-            className={`flex-1 py-1 text-xs font-semibold rounded-lg transition ${
-              selectedType === 'all' ? 'bg-white text-black shadow-sm' : 'text-[#8E8E93]'
-            }`}
-          >
-            Tất cả
-          </button>
-          <button
-            onClick={() => setSelectedType('expense')}
-            className={`flex-1 py-1 text-xs font-semibold rounded-lg transition ${
-              selectedType === 'expense' ? 'bg-white text-[#FF3B30] shadow-sm' : 'text-[#8E8E93]'
-            }`}
-          >
-            Chi tiêu
-          </button>
-          <button
-            onClick={() => setSelectedType('income')}
-            className={`flex-1 py-1 text-xs font-semibold rounded-lg transition ${
-              selectedType === 'income' ? 'bg-white text-[#34C759] shadow-sm' : 'text-[#8E8E93]'
-            }`}
-          >
-            Thu nhập
-          </button>
+        {/* Type Toggle */}
+        <div className="segment-track">
+          {(['all', 'expense', 'income'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setSelectedType(t)}
+              className={`segment-btn flex-1 ${selectedType === t ? 'active' : ''}`}
+              style={
+                selectedType === t && t === 'expense'
+                  ? { color: '#FF453A' }
+                  : selectedType === t && t === 'income'
+                  ? { color: '#32D74B' }
+                  : {}
+              }
+            >
+              {t === 'all' ? 'Tất cả' : t === 'expense' ? 'Chi tiêu' : 'Thu nhập'}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Date-Grouped Transaction Timeline */}
-      <div className="space-y-6">
+      {/* Timeline */}
+      <div className="space-y-5">
         {groupedTransactions.length > 0 ? (
           groupedTransactions.map((group) => (
-            <div key={group.label} className="space-y-2">
-              <div className="flex items-center gap-2 px-1">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#8E8E93]">
-                  {group.label}
-                </span>
-                <div className="flex-1 h-[1px] bg-black/[0.05]"></div>
-              </div>
+            <div key={group.label} className="animate-slide-up">
+              {/* Date divider */}
+              <div className="date-divider">{group.label}</div>
 
-              <div className="bg-[#F2F2F7] border border-black/[0.04] rounded-[20px] overflow-hidden divide-y divide-black/[0.04]">
+              {/* Transaction items */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {group.items.map((tx) => {
                   const cat = categoryMap.get(tx.category_id || '');
                   const isExpense = tx.type === 'expense';
+                  const amountColor = isExpense ? '#FF453A' : '#32D74B';
 
                   return (
-                    <div
-                      key={tx.id}
-                      className="flex items-center justify-between bg-white hover:bg-[#F2F2F7]/50 px-4 py-3.5 transition group"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        {/* Category Symbol Icon Container */}
-                        <div
-                          className="p-2.5 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105"
-                          style={{
-                            backgroundColor: `${cat?.color || (isExpense ? '#FF3B30' : '#34C759')}15`,
-                            color: cat?.color || (isExpense ? '#FF3B30' : '#34C759'),
-                          }}
-                        >
-                          {renderCategoryIcon(cat?.name, cat?.icon, isExpense)}
-                        </div>
+                    <div key={tx.id} className="tx-item group">
+                      {/* Left: Icon + Text */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                        <CategoryIcon3D
+                          categoryName={cat?.name}
+                          iconName={cat?.icon}
+                          isExpense={isExpense}
+                        />
 
-                        <div>
-                          {/* Top Line: Category Name (Hạng mục) */}
-                          <h4 className="font-semibold text-black text-sm tracking-tight">
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p
+                            className="text-cat"
+                            style={{ fontSize: 14, color: '#1C1C1E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
                             {cat ? cat.name : (isExpense ? 'Chi tiêu' : 'Thu nhập')}
-                          </h4>
-
-                          {/* Bottom Line: Time + Transaction Description/Note (Ẩn hoàn toàn câu thoại giọng nói gốc) */}
-                          <div className="flex items-center gap-2 text-xs text-[#8E8E93] font-medium mt-0.5">
-                            <span>{formatTimeOnly(tx.transaction_date)}</span>
-                            <span>•</span>
-                            <span className="text-slate-700 font-normal">{tx.description}</span>
-                          </div>
+                          </p>
+                          <p
+                            className="text-note"
+                            style={{ fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
+                            {tx.description}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      {/* Right: Amount + Time + Delete */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
                         <span
-                          className={`text-base font-bold ${
-                            isExpense ? 'text-[#FF3B30]' : 'text-[#34C759]'
-                          }`}
+                          className="text-amount"
+                          style={{ fontSize: 15, color: amountColor }}
                         >
                           {isExpense ? '-' : '+'}{formatVND(tx.amount)}
                         </span>
-
-                        <button
-                          onClick={() => onDeleteTransaction(tx.id)}
-                          className="opacity-0 group-hover:opacity-100 text-[#8E8E93] hover:text-[#FF3B30] p-1.5 rounded-full hover:bg-[#F2F2F7] transition"
-                          title="Xóa giao dịch"
-                        >
-                          <Trash2 className="w-4 h-4" strokeWidth={2} />
-                        </button>
+                        <span className="text-note" style={{ fontSize: 11 }}>
+                          {formatTimeOnly(tx.transaction_date)}
+                        </span>
                       </div>
+
+                      {/* Delete button */}
+                      <button
+                        onClick={() => onDeleteTransaction(tx.id)}
+                        className="tx-delete-btn"
+                        title="Xóa giao dịch"
+                        style={{
+                          padding: '6px',
+                          borderRadius: '50%',
+                          color: '#86868B',
+                          flexShrink: 0,
+                          transition: 'color 0.15s, background 0.15s',
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.color = '#FF453A';
+                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,69,58,0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.color = '#86868B';
+                          (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                        }}
+                      >
+                        <Trash2 style={{ width: 15, height: 15 }} strokeWidth={2} />
+                      </button>
                     </div>
                   );
                 })}
@@ -298,9 +258,21 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
             </div>
           ))
         ) : (
-          <div className="text-center py-16 bg-[#F2F2F7] rounded-[20px] border border-dashed border-black/[0.06]">
-            <p className="text-sm font-semibold text-[#8E8E93]">Chưa có giao dịch phù hợp</p>
-            <p className="text-xs text-[#8E8E93] mt-1">Nói hoặc gõ vào ô ở góc dưới màn hình để ghi chép!</p>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '56px 24px',
+              background: 'rgba(118,118,128,0.06)',
+              borderRadius: 20,
+              border: '1.5px dashed rgba(0,0,0,0.08)',
+            }}
+          >
+            <p className="text-cat" style={{ fontSize: 15, color: '#86868B' }}>
+              Chưa có giao dịch phù hợp
+            </p>
+            <p className="text-note" style={{ fontSize: 13, marginTop: 6 }}>
+              Nói hoặc gõ vào ô ở góc dưới để ghi chép!
+            </p>
           </div>
         )}
       </div>

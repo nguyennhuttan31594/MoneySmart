@@ -28,11 +28,7 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
         recognition.interimResults = true;
         recognition.lang = 'vi-VN';
 
-        recognition.onstart = () => {
-          setIsListening(true);
-          setErrorMsg(null);
-        };
-
+        recognition.onstart = () => { setIsListening(true); setErrorMsg(null); };
         recognition.onresult = (event: any) => {
           let currentText = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -40,21 +36,13 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
           }
           setTranscript(currentText);
         };
-
         recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
           setIsListening(false);
-          if (event.error === 'not-allowed') {
-            setErrorMsg('Vui lòng cấp quyền micro để thu âm');
-          } else {
-            setErrorMsg('Lỗi thu âm. Vui lòng nhấn lại');
-          }
+          setErrorMsg(event.error === 'not-allowed'
+            ? 'Vui lòng cấp quyền micro để thu âm'
+            : 'Lỗi thu âm. Vui lòng nhấn lại');
         };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
+        recognition.onend = () => setIsListening(false);
         recognitionRef.current = recognition;
       }
     }
@@ -81,10 +69,7 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (transcript.trim() && !isProcessing) {
-      if (isListening) {
-        recognitionRef.current?.stop();
-        setIsListening(false);
-      }
+      if (isListening) { recognitionRef.current?.stop(); setIsListening(false); }
       onTranscriptComplete(transcript.trim());
       setTranscript('');
       setErrorMsg(null);
@@ -92,27 +77,49 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   };
 
   return (
-    <div className="w-full">
+    <div style={{ width: '100%' }}>
+      {/* Error banner */}
       {errorMsg && (
-        <div className="mb-2 text-xs text-rose-500 font-medium text-center bg-rose-50 border border-rose-200 rounded-xl py-1.5 px-3">
+        <div
+          style={{
+            marginBottom: 8,
+            fontSize: 12,
+            fontWeight: 500,
+            textAlign: 'center',
+            color: '#FF453A',
+            background: 'rgba(255,69,58,0.08)',
+            border: '1px solid rgba(255,69,58,0.2)',
+            borderRadius: 12,
+            padding: '7px 12px',
+          }}
+        >
           {errorMsg}
         </div>
       )}
 
-      {/* Parallel Text Input + Voice Mic + Submit Button */}
+      {/* Input bar — Liquid Glass */}
       <form
         onSubmit={handleSubmit}
-        className="flex items-center gap-2 bg-white/95 backdrop-blur-2xl border border-black/[0.08] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full p-1.5 transition-all focus-within:ring-2 focus-within:ring-[#007AFF]/40"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'rgba(255,255,255,0.82)',
+          backdropFilter: 'blur(32px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+          border: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 8px 32px rgba(0,0,0,0.12)',
+          borderRadius: 9999,
+          padding: '6px 6px 6px 16px',
+          transition: 'box-shadow 0.2s ease',
+        }}
       >
         {/* Text Input */}
-        <div className="relative flex-1 flex items-center pl-3">
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
             type="text"
             value={transcript}
@@ -127,50 +134,119 @@ export const VoiceFAB: React.FC<VoiceFABProps> = ({
                 ? 'Đang lắng nghe giọng nói...'
                 : "Gõ hoặc nói: 'Cơm tấm 35k', 'Lương 15tr'..."
             }
-            className="w-full bg-transparent text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none py-1.5 pr-2"
+            style={{
+              flex: 1,
+              background: 'transparent',
+              color: '#1C1C1E',
+              fontSize: 14,
+              fontWeight: 500,
+              fontFamily: 'inherit',
+              outline: 'none',
+              border: 'none',
+            }}
           />
 
+          {/* Recording pulse indicator */}
           {isListening && (
-            <span className="flex h-2.5 w-2.5 relative mr-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF3B30] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF3B30]"></span>
+            <span style={{ position: 'relative', width: 10, height: 10, display: 'flex', flexShrink: 0 }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  background: '#FF453A',
+                  opacity: 0.6,
+                  animation: 'ping 1s cubic-bezier(0, 0, 0.2, 1) infinite',
+                }}
+              />
+              <span
+                style={{
+                  borderRadius: '50%',
+                  width: 10,
+                  height: 10,
+                  background: '#FF453A',
+                  position: 'relative',
+                }}
+              />
             </span>
           )}
         </div>
 
-        {/* Micro Button (song song với ô nhập liệu) */}
+        {/* Mic Button */}
         <button
           type="button"
           onClick={toggleListen}
           disabled={isProcessing}
-          className={`p-2.5 rounded-full transition-all duration-200 shrink-0 flex items-center justify-center ${
-            isListening
-              ? 'bg-[#FF3B30] text-white ring-2 ring-[#FF3B30]/40 animate-pulse'
-              : 'bg-[#F2F2F7] hover:bg-slate-200 text-[#007AFF] active:scale-95'
-          }`}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'all 0.2s ease',
+            ...(isListening
+              ? {
+                  background: '#FF453A',
+                  color: '#fff',
+                  boxShadow: '0 0 0 4px rgba(255,69,58,0.25)',
+                }
+              : {
+                  background: 'rgba(118,118,128,0.12)',
+                  color: '#007AFF',
+                }),
+          }}
           title={isListening ? 'Dừng thu âm' : 'Nói bằng giọng nói'}
         >
           {isListening ? (
-            <MicOff className="w-5 h-5" />
+            <MicOff style={{ width: 18, height: 18 }} />
           ) : (
-            <Mic className="w-5 h-5" strokeWidth={2.2} />
+            <Mic style={{ width: 18, height: 18 }} strokeWidth={2.2} />
           )}
         </button>
 
-        {/* Submit / Send Button */}
+        {/* Send Button */}
         <button
           type="submit"
           disabled={!transcript.trim() || isProcessing}
-          className="bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-30 disabled:hover:bg-[#007AFF] text-white p-2.5 rounded-full transition shadow-md shadow-[#007AFF]/20 shrink-0 flex items-center justify-center active:scale-95"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            color: '#fff',
+            background: transcript.trim() && !isProcessing
+              ? 'linear-gradient(135deg, #007AFF 0%, #0A84FF 100%)'
+              : 'rgba(118,118,128,0.2)',
+            boxShadow: transcript.trim() && !isProcessing
+              ? '0 4px 14px rgba(0,122,255,0.4)'
+              : 'none',
+            transition: 'all 0.2s ease',
+            opacity: transcript.trim() || isProcessing ? 1 : 0.4,
+          }}
           title="Gửi dữ liệu (Enter)"
         >
           {isProcessing ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
           ) : (
-            <Send className="w-5 h-5" />
+            <Send style={{ width: 16, height: 16 }} />
           )}
         </button>
       </form>
+
+      <style>{`
+        @keyframes ping {
+          75%, 100% { transform: scale(2); opacity: 0; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
