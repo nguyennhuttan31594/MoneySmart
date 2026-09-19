@@ -333,7 +333,20 @@ function parseVnAmount(val: any, rawText: string): number {
   const text = (rawText || '').toLowerCase().trim();
   if (!text) return 0;
 
-  // STT Rule 1: Chrome STT "100 8", "100 4", "100 5", "200 5", "100 8k", "100 4k"
+  // STT Rule 1: Explicit Thousand units FIRST ("18k", "18 ngàn", "18 nghìn", "14k")
+  const thousandUnitRegex = new RegExp(`(?:^|\\s)(\\d+[\\.,]?\\d*|một|mot|mốt|hai|ba|bốn|bon|tư|tu|năm|nam|lăm|lam|nhăm|rưỡi|ruoi|sáu|sau|bảy|bay|tám|tam|chín|chin)\\s*(?:k|ngàn|ngan|nghìn|nghin)(?:\\s+|$)`, 'i');
+  const thousandUnitMatch = text.match(thousandUnitRegex);
+  if (thousandUnitMatch) {
+    const wordToDigitMap: { [key: string]: number } = {
+      'một': 1, 'mot': 1, 'mốt': 1, 'hai': 2, 'ba': 3, 'bốn': 4, 'bon': 4, 'tư': 4, 'tu': 4,
+      'năm': 5, 'nam': 5, 'lăm': 5, 'lam': 5, 'nhăm': 5, 'rưỡi': 5, 'ruoi': 5,
+      'sáu': 6, 'sau': 6, 'bảy': 7, 'bay': 7, 'tám': 8, 'tam': 8, 'chín': 9, 'chin': 9,
+    };
+    const kVal = wordToDigitMap[thousandUnitMatch[1]] !== undefined ? wordToDigitMap[thousandUnitMatch[1]] : parseFloat(thousandUnitMatch[1].replace(',', '.'));
+    if (!isNaN(kVal)) return Math.round(kVal * 1000);
+  }
+
+  // STT Rule 2: Chrome STT "100 8", "100 4", "100 5", "200 5", "100 8k", "100 4k"
   const hundredSpaceDigitMatch = text.match(/(?:^|\s)(\d00)\s+([1-9])(?:k|ngàn|ngan)?(?:\s+|$)/i);
   if (hundredSpaceDigitMatch) {
     const head = parseInt(hundredSpaceDigitMatch[1], 10);
@@ -341,12 +354,20 @@ function parseVnAmount(val: any, rawText: string): number {
     return (head + tail * 10) * 1000;
   }
 
-  // STT Rule 2: Chrome STT "1008", "1004", "1005", "1001", "1002"
+  // STT Rule 3: Chrome STT "1008", "1004", "1005", "1001", "1002"
   const hundredConcatDigitMatch = text.match(/(?:^|\s)([1-9]00)([1-9])(?:\s+|$)/i);
   if (hundredConcatDigitMatch) {
     const head = parseInt(hundredConcatDigitMatch[1], 10);
     const tail = parseInt(hundredConcatDigitMatch[2], 10);
     return (head + tail * 10) * 1000;
+  }
+
+  // STT Rule 4: Chrome STT bare 2-digit numbers 11..19 without units ("mua sách 18" -> 180k, "mua mắt kính 14" -> 140k)
+  // Produced by Chrome STT when user speaks "một trăm tám", "một trăm tư"
+  const bareTeenMatch = text.match(/(?:^|\s)(1[1-9])(?:\s+|$)/i);
+  if (bareTeenMatch) {
+    const teenVal = parseInt(bareTeenMatch[1], 10);
+    return teenVal * 10000; // 18 -> 180000 (180k), 14 -> 140000 (140k)
   }
 
   // 1. Direct numeric value from AI safety check
