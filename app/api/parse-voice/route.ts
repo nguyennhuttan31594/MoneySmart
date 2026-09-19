@@ -247,11 +247,8 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
     };
   }
 
-  // Amount parsing safety
-  let amount = typeof raw?.amount === 'number' && !isNaN(raw.amount) ? raw.amount : 0;
-  if (amount < 1000 && amount > 0) {
-    amount = amount * 1000;
-  }
+  // Smart robust amount parsing
+  const amount = parseVnAmount(raw?.amount, rawText);
 
   return {
     amount,
@@ -263,30 +260,61 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
   };
 }
 
+// Smart robust amount parsing for Vietnamese voice & text inputs
+function parseVnAmount(val: any, rawText: string): number {
+  if (typeof val === 'number' && !isNaN(val) && val > 0) {
+    return val < 1000 ? val * 1000 : val;
+  }
+  if (typeof val === 'string' && val.trim() !== '') {
+    const cleaned = val.replace(/[^\d.]/g, '');
+    const num = parseFloat(cleaned);
+    if (!isNaN(num) && num > 0) {
+      return num < 1000 ? num * 1000 : num;
+    }
+  }
+
+  const lower = (rawText || '').toLowerCase();
+  const wordMap: { [key: string]: number } = {
+    'một': 1, 'mot': 1,
+    'hai': 2,
+    'ba': 3,
+    'bốn': 4, 'bon': 4,
+    'năm': 5, 'nam': 5,
+    'sáu': 6, 'sau': 6,
+    'bảy': 7, 'bay': 7,
+    'tám': 8, 'tam': 8,
+    'chín': 9, 'chin': 9,
+    'mười': 10, 'muoi': 10,
+    'nửa': 0.5, 'nua': 0.5,
+  };
+
+  const cuMatch = lower.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(củ|cu|triệu|trieu|tr)/i);
+  if (cuMatch) {
+    const numPart = wordMap[cuMatch[1].toLowerCase()] || parseFloat(cuMatch[1].replace(',', '.'));
+    if (!isNaN(numPart)) return numPart * 1000000;
+  }
+
+  const kMatch = lower.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(k|ngàn|ngan|nghìn|nghin)/i);
+  if (kMatch) {
+    const numPart = wordMap[kMatch[1].toLowerCase()] || parseFloat(kMatch[1].replace(',', '.'));
+    if (!isNaN(numPart)) return numPart * 1000;
+  }
+
+  const digitsMatch = lower.match(/(\d+[\.,]?\d*)/g);
+  if (digitsMatch && digitsMatch.length > 0) {
+    const rawVal = parseFloat(digitsMatch[digitsMatch.length - 1].replace(',', '.'));
+    if (!isNaN(rawVal)) {
+      return rawVal < 1000 ? rawVal * 1000 : rawVal;
+    }
+  }
+
+  return 0;
+}
+
 // Improved smart rule-based parser
 function mockVietnameseParser(text: string, todayDateStr: string) {
   const lower = text.toLowerCase();
-
-  // Extract amount
-  let amount = 0;
-  const kMatch = lower.match(/(\d+[\.,]?\d*)\s*(k|ngàn|ngan|nghìn|nghin)/);
-  const cuMatch = lower.match(/(\d+[\.,]?\d*)\s*(củ|cu|triệu|trieu|tr)/);
-  const numberMatches = lower.match(/(\d+[\.,]?\d*)/g);
-
-  if (kMatch) {
-    amount = parseFloat(kMatch[1].replace(',', '.')) * 1000;
-  } else if (cuMatch) {
-    amount = parseFloat(cuMatch[1].replace(',', '.')) * 1000000;
-  } else if (numberMatches && numberMatches.length > 0) {
-    const rawVal = parseFloat(numberMatches[numberMatches.length - 1].replace(',', '.'));
-    if (!isNaN(rawVal)) {
-      if (rawVal < 1000) {
-        amount = rawVal * 1000;
-      } else {
-        amount = rawVal;
-      }
-    }
-  }
+  const amount = parseVnAmount(null, text);
 
   // Type
   const isIncome = lower.includes('lương') || lower.includes('luong') || lower.includes('thưởng') || lower.includes('thuong') || lower.includes('nhận') || lower.includes('nhan') || lower.includes('thu');
@@ -304,6 +332,7 @@ function mockVietnameseParser(text: string, todayDateStr: string) {
   // Description cleanup
   const cleanDesc = text
     .replace(/\d+[\.,]?\d*\s*(k|củ|cu|tr|triệu|trieu|ngàn|ngan|nghìn|nghin)?/gi, '')
+    .replace(/\b(một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b\s*(củ|cu|triệu|trieu|tr|k|ngàn|ngan|nghìn|nghin)?/gi, '')
     .trim();
 
   return {
