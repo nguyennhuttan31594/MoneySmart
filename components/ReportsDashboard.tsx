@@ -21,8 +21,8 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
   transactions,
   categories,
 }) => {
-  const [timeframe, setTimeframe] = useState<AnalyticsTimeframe>('monthly');
-  const [thumbIdx, setThumbIdx] = useState(2); // monthly = index 2
+  const [timeframe, setTimeframe] = useState<AnalyticsTimeframe>('daily');
+  const [thumbIdx, setThumbIdx] = useState(0); // daily = index 0 (Ngày)
   const [isMounted, setIsMounted] = useState(false);
 
   React.useEffect(() => { setIsMounted(true); }, []);
@@ -299,32 +299,91 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
           </div>
 
           {periodData.pieData.length > 0 ? (
-            <div style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={periodData.pieData}
-                    cx="50%" cy="50%"
-                    innerRadius={60} outerRadius={90}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {periodData.pieData.map((entry: any, idx: number) => (
-                      <Cell key={`cell-${idx}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val: number) => [formatVND(val), 'Số tiền']}
-                    contentStyle={tooltipStyle}
-                  />
-                  <Legend
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: 12, fontFamily: 'inherit' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div style={{ height: 230 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={periodData.pieData}
+                      cx="50%" cy="50%"
+                      innerRadius={52} outerRadius={84}
+                      paddingAngle={4}
+                      dataKey="value"
+                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percentage }) => {
+                        if (!percentage || Number(percentage) < 4) return null;
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <text
+                            x={x}
+                            y={y}
+                            fill="#FFFFFF"
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontSize={11}
+                            fontWeight={700}
+                          >
+                            {`${percentage}%`}
+                          </text>
+                        );
+                      }}
+                      labelLine={false}
+                    >
+                      {periodData.pieData.map((entry: any, idx: number) => (
+                        <Cell key={`cell-${idx}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val: number) => [formatVND(val), 'Số tiền']}
+                      contentStyle={tooltipStyle}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: 12, fontFamily: 'inherit', paddingTop: 6 }}
+                      formatter={(value: string) => {
+                        const item = periodData.pieData.find((p: any) => p.name === value);
+                        return `${value} (${item?.percentage || 0}%)`;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Detailed Breakdown List with % Badges */}
+              <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid var(--separator)', paddingTop: 12 }}>
+                {periodData.pieData.map((item: any) => (
+                  <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.color, flexShrink: 0 }} aria-hidden="true" />
+                      <span style={{ color: 'var(--label)', fontWeight: 500 }}>{item.name}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="tabular-num" style={{ color: 'var(--label-secondary)', fontSize: 12, fontWeight: 500 }}>
+                        {formatVND(item.value)}
+                      </span>
+                      <span
+                        className="tabular-num"
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: item.color,
+                          background: `color-mix(in srgb, ${item.color} 15%, transparent)`,
+                          padding: '2px 7px',
+                          borderRadius: 9999,
+                          minWidth: 44,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {item.percentage}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="empty-state" style={{ padding: '40px 0' }}>
               <p className="type-subhead" style={{ color: 'var(--label-tertiary)' }}>
