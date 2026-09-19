@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Category, TransactionType } from '@/lib/types';
 import { Plus, Trash2, FolderPlus, DollarSign, Layers } from 'lucide-react';
+import { CategoryIcon } from '@/components/CategoryIcon3D';
 
 interface CategoryManagerProps {
   categories: Category[];
@@ -289,11 +290,8 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                     role="listitem"
                   >
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span
-                          style={{ width: 8, height: 8, borderRadius: '50%', background: child.color, flexShrink: 0 }}
-                          aria-hidden="true"
-                        />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <CategoryIcon categoryName={child.name} iconName={child.icon} size="sm" />
                         <span className="type-subhead" style={{ color: 'var(--label)', fontWeight: 500 }}>
                           {child.name}
                         </span>

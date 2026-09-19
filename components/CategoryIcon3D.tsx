@@ -4,7 +4,6 @@ import React from 'react';
 import {
   ForkKnife,
   Motorcycle,
-  CarSimple,
   Lightning,
   ShoppingBag,
   Heartbeat,
@@ -13,6 +12,8 @@ import {
   Wallet,
   Tag,
   TrendUp,
+  BookOpen,
+  FilmStrip,
 } from '@phosphor-icons/react';
 
 interface CategoryIconProps {
@@ -27,15 +28,18 @@ export type CategoryMeta = {
   Icon: React.ElementType;
 };
 
+// 10 Distinct, High-Contrast iOS System Palette Colors
 export const CATEGORY_META_MAP: Record<string, CategoryMeta> = {
-  'ăn uống': { color: '#FF9500', Icon: ForkKnife },
-  'di chuyển': { color: '#5856D6', Icon: Motorcycle },
-  'hóa đơn': { color: '#32ADE6', Icon: Lightning },
-  'mua sắm': { color: '#FF2D55', Icon: ShoppingBag },
-  'sức khỏe': { color: '#FF3B30', Icon: Heartbeat },
-  'con cái': { color: '#AF52DE', Icon: Baby },
-  'trả nợ': { color: '#A2845E', Icon: CreditCard },
-  'thu nhập': { color: '#34C759', Icon: Wallet },
+  'ăn uống': { color: '#FF9500', Icon: ForkKnife },           // 1. Cam Rực Rỡ (Bright Warm Orange)
+  'di chuyển': { color: '#007AFF', Icon: Motorcycle },         // 2. Xanh Dương (Electric iOS Blue)
+  'hóa đơn': { color: '#FFCC00', Icon: Lightning },          // 3. Vàng Rạng Rỡ (Bright Sun Amber)
+  'mua sắm': { color: '#FF2D55', Icon: ShoppingBag },          // 4. Hồng Sen / Hot Pink (Hot Pink)
+  'sức khỏe': { color: '#00C7BE', Icon: Heartbeat },          // 5. Xanh Ngọc Mint (Emerald Mint Teal)
+  'con cái': { color: '#AF52DE', Icon: Baby },               // 6. Tím Hoàng Gia (Royal Violet)
+  'giáo dục': { color: '#5856D6', Icon: BookOpen },          // 7. Xanh Tím Indigo (Deep Indigo)
+  'giải trí': { color: '#FF3B30', Icon: FilmStrip },         // 8. Đỏ San Hô (Coral Red)
+  'trả nợ': { color: '#A2845E', Icon: CreditCard },           // 9. Nâu Đồng (Warm Bronze)
+  'thu nhập': { color: '#34C759', Icon: Wallet },             // 10. Xanh Lá Cây (Emerald Green)
 };
 
 export const getCategoryMeta = (name: string, icon: string = '', isExpense: boolean = true): CategoryMeta => {
@@ -51,13 +55,19 @@ export const getCategoryMeta = (name: string, icon: string = '', isExpense: bool
   if (n.includes('hóa đơn') || n.includes('điện nước') || n.includes('điện') || ic.includes('zap') || ic.includes('lightning'))
     return CATEGORY_META_MAP['hóa đơn'];
 
-  if (n.includes('mua sắm') || n.includes('giải trí') || n.includes('quần áo') || ic.includes('shopping'))
+  if (n.includes('giáo dục') || n.includes('học tập') || n.includes('sách') || ic.includes('book'))
+    return CATEGORY_META_MAP['giáo dục'];
+
+  if (n.includes('giải trí') || n.includes('phim') || n.includes('game') || ic.includes('film'))
+    return CATEGORY_META_MAP['giải trí'];
+
+  if (n.includes('mua sắm') || n.includes('quần áo') || ic.includes('shopping'))
     return CATEGORY_META_MAP['mua sắm'];
 
-  if (n.includes('sức khỏe') || n.includes('y tế') || n.includes('bệnh') || n.includes('thuốc') || ic.includes('heart'))
+  if (n.includes('sức khỏe') || n.includes('y tế') || n.includes('bệnh') || n.includes('thuốc') || ic.includes('heart') || ic.includes('activity'))
     return CATEGORY_META_MAP['sức khỏe'];
 
-  if (n.includes('con cái') || n.includes('trẻ em') || n.includes('học phí') || ic.includes('baby'))
+  if (n.includes('con cái') || n.includes('trẻ em') || ic.includes('baby'))
     return CATEGORY_META_MAP['con cái'];
 
   if (n.includes('trả nợ') || n.includes('vay nợ') || n.includes('nợ') || ic.includes('credit'))
