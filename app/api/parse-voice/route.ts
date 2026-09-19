@@ -100,10 +100,10 @@ export async function POST(req: NextRequest) {
     // Call Gemini AI if key is configured
     if (apiKey) {
       try {
-        console.log('Gemini API Key detected. Calling Gemini API gemini-1.5-flash...');
+        console.log('Gemini API Key detected. Calling Gemini API gemini-3.6-flash...');
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-3.6-flash',
           generationConfig: {
             responseMimeType: 'application/json',
           },
