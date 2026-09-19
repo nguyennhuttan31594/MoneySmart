@@ -262,6 +262,18 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
 
 // Smart robust amount parsing for Vietnamese voice & text inputs
 function parseVnAmount(val: any, rawText: string): number {
+  // 1. Direct numeric value from AI safety check
+  if (typeof val === 'number' && !isNaN(val) && val > 0) {
+    return val < 1000 ? val * 1000 : val;
+  }
+  if (typeof val === 'string' && val.trim() !== '') {
+    const cleaned = val.replace(/[^\d.]/g, '');
+    const num = parseFloat(cleaned);
+    if (!isNaN(num) && num > 0) {
+      return num < 1000 ? num * 1000 : num;
+    }
+  }
+
   const text = (rawText || '').toLowerCase().trim();
 
   // Word-to-number map
@@ -281,17 +293,82 @@ function parseVnAmount(val: any, rawText: string): number {
     'nửa': 0.5, 'nua': 0.5,
   };
 
-  const kMatch = lower.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(k|ngàn|ngan|nghìn|nghin)/i);
-  if (kMatch) {
-    const numPart = wordMap[kMatch[1].toLowerCase()] || parseFloat(kMatch[1].replace(',', '.'));
-    if (!isNaN(numPart)) return numPart * 1000;
+  function parseWordsToNumber(phrase: string): number {
+    if (!phrase) return 0;
+    const clean = phrase.trim();
+    if (/^\d+[\.,]?\d*$/.test(clean)) return parseFloat(clean.replace(',', '.'));
+
+    const tokens = clean.split(/\s+/);
+    let total = 0;
+    let currentVal = 0;
+
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      const v = wordMap[tok];
+      if (v !== undefined) {
+        if (v === 100) {
+          total += (currentVal || 1) * 100;
+          currentVal = 0;
+        } else if (v === 10) {
+          currentVal = (currentVal || 1) * 10;
+        } else {
+          currentVal += v;
+        }
+      }
+    }
+    return total + currentVal;
   }
 
-  const digitsMatch = lower.match(/(\d+[\.,]?\d*)/g);
+  // 2. Compound Million + Thousand match (e.g. 'khám bệnh hai triệu chín trăm bảy mươi lăm ngàn', '1tr755k')
+  const compoundMatch = text.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(?:củ|cu|triệu|trieu|tr)\s*(?:và|va)?\s*(.+?)(?:ngàn|ngan|nghìn|nghin|k)?$/i);
+
+  if (compoundMatch) {
+    const millionVal = wordMap[compoundMatch[1].toLowerCase()] || parseFloat(compoundMatch[1].replace(',', '.'));
+    const thousandText = compoundMatch[2].trim();
+
+    if (!isNaN(millionVal)) {
+      let thousandVal = 0;
+      if (thousandText) {
+        const thousandDigitsMatch = thousandText.match(/^(\d+[\.,]?\d*)/);
+        if (thousandDigitsMatch) {
+          thousandVal = parseFloat(thousandDigitsMatch[1].replace(',', '.'));
+        } else {
+          thousandVal = parseWordsToNumber(thousandText);
+        }
+      }
+
+      if (thousandVal > 0 && thousandVal < 1000) {
+        if (thousandVal < 10 && thousandText.length === 1) {
+          thousandVal = thousandVal * 100000;
+        } else {
+          thousandVal = thousandVal * 1000;
+        }
+      }
+
+      return Math.round(millionVal * 1000000 + thousandVal);
+    }
+  }
+
+  // 3. Simple Million match (e.g. '7 triệu', '7tr', '7 củ', 'bảy triệu')
+  const millionOnlyMatch = text.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(củ|cu|triệu|trieu|tr)/i);
+  if (millionOnlyMatch) {
+    const mVal = wordMap[millionOnlyMatch[1].toLowerCase()] || parseFloat(millionOnlyMatch[1].replace(',', '.'));
+    if (!isNaN(mVal)) return Math.round(mVal * 1000000);
+  }
+
+  // 4. Simple Thousand match (e.g. '755k', '755 ngàn')
+  const thousandOnlyMatch = text.match(/(\d+[\.,]?\d*|\b(?:một|mot|hai|ba|bốn|bon|năm|nam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi)\b)\s*(k|ngàn|ngan|nghìn|nghin)/i);
+  if (thousandOnlyMatch) {
+    const kVal = wordMap[thousandOnlyMatch[1].toLowerCase()] || parseFloat(thousandOnlyMatch[1].replace(',', '.'));
+    if (!isNaN(kVal)) return Math.round(kVal * 1000);
+  }
+
+  // 5. Bare digits at end of text (e.g. 'đổ xăng 70')
+  const digitsMatch = text.match(/(\d+[\.,]?\d*)/g);
   if (digitsMatch && digitsMatch.length > 0) {
-    const rawVal = parseFloat(digitsMatch[digitsMatch.length - 1].replace(',', '.'));
+    const rawVal = parseFloat(digitsMatch[digitsMatch.length - 1].replace(/[.,]/g, ''));
     if (!isNaN(rawVal)) {
-      return rawVal < 1000 ? rawVal * 1000 : rawVal;
+      return rawVal < 1000 ? Math.round(rawVal * 1000) : rawVal;
     }
   }
 
