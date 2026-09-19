@@ -15,7 +15,8 @@ import { Wallet, PieChart, Layers, ListFilter } from 'lucide-react';
 
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Default active tab: [Nhật ký] (transactions)
   const [activeTab, setActiveTab] = useState<'transactions' | 'reports' | 'categories'>('transactions');
@@ -32,62 +33,95 @@ export default function Home() {
     return `${year}-${month}-${day}`;
   };
 
-  // Load initial data from Supabase or LocalStorage
+  // Load initial data from LocalStorage & Supabase
   useEffect(() => {
     async function loadData() {
+      // 1. Read cached data from LocalStorage first for instant render
+      let localCats: Category[] = DEFAULT_CATEGORIES;
+      let localTxs: Transaction[] = INITIAL_TRANSACTIONS;
+
+      try {
+        const rawLocalCats = localStorage.getItem('moneysmartflow_categories') || localStorage.getItem('moneyflow_categories');
+        const rawLocalTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
+        if (rawLocalCats) localCats = JSON.parse(rawLocalCats);
+        if (rawLocalTxs) localTxs = JSON.parse(rawLocalTxs);
+      } catch (err) {
+        console.error('LocalStorage read error:', err);
+      }
+
+      setCategories(localCats);
+      setTransactions(localTxs);
+
+      // 2. Fetch from Supabase and merge with local data
       if (isSupabaseConfigured && supabase) {
         try {
-          // 1. Fetch categories
-          const { data: catData, error: catErr } = await supabase.from('categories').select('*');
-          if (catErr) {
-            console.error('Supabase categories error:', catErr);
-          } else if (catData && catData.length > 0) {
+          // Fetch categories
+          const { data: catData } = await supabase.from('categories').select('*');
+          if (catData && catData.length > 0) {
             setCategories(catData);
+            localStorage.setItem('moneysmartflow_categories', JSON.stringify(catData));
           } else {
-            // Seed default categories into Supabase if empty
-            const { data: seededCats } = await supabase.from('categories').upsert(DEFAULT_CATEGORIES).select();
-            if (seededCats && seededCats.length > 0) {
-              setCategories(seededCats);
-            }
+            await supabase.from('categories').upsert(DEFAULT_CATEGORIES);
           }
 
-          // 2. Fetch transactions from Supabase
+          // Fetch transactions
           const { data: txData, error: txErr } = await supabase
             .from('transactions')
             .select('*')
             .order('transaction_date', { ascending: false });
 
-          if (txErr) {
-            console.error('Supabase transactions fetch error:', txErr);
-            const localTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
-            if (localTxs) setTransactions(JSON.parse(localTxs));
-          } else if (txData) {
-            setTransactions(txData);
-            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(txData));
+          if (!txErr && txData) {
+            if (txData.length > 0) {
+              // Merge Supabase txData with local-only transactions (avoiding duplicates)
+              const remoteIds = new Set(txData.map((t) => t.id));
+              const localOnly = localTxs.filter((t) => !remoteIds.has(t.id));
+              const merged = [...txData, ...localOnly].sort(
+                (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+              );
+              setTransactions(merged);
+              localStorage.setItem('moneysmartflow_transactions', JSON.stringify(merged));
+            } else if (localTxs.length > 0) {
+              // Supabase empty, seed localTxs to Supabase
+              const { data: seeded } = await supabase.from('transactions').insert(
+                localTxs.map((t) => ({
+                  category_id: t.category_id,
+                  amount: t.amount,
+                  type: t.type,
+                  description: t.description,
+                  raw_text: t.raw_text || t.description,
+                  transaction_date: t.transaction_date,
+                }))
+              ).select();
+
+              if (seeded && seeded.length > 0) {
+                setTransactions(seeded);
+                localStorage.setItem('moneysmartflow_transactions', JSON.stringify(seeded));
+              }
+            }
           }
         } catch (err) {
           console.error('Supabase load error:', err);
-          const localTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
-          if (localTxs) setTransactions(JSON.parse(localTxs));
         }
-      } else {
-        const localCats = localStorage.getItem('moneysmartflow_categories') || localStorage.getItem('moneyflow_categories');
-        const localTxs = localStorage.getItem('moneysmartflow_transactions') || localStorage.getItem('moneyflow_transactions');
-        if (localCats) setCategories(JSON.parse(localCats));
-        if (localTxs) setTransactions(JSON.parse(localTxs));
       }
+
+      setIsLoaded(true);
     }
+
     loadData();
   }, []);
 
-  // Sync to LocalStorage Backup on any change
+  // Sync to LocalStorage Backup ONLY AFTER initial load is done
   useEffect(() => {
-    localStorage.setItem('moneysmartflow_categories', JSON.stringify(categories));
-  }, [categories]);
+    if (isLoaded) {
+      localStorage.setItem('moneysmartflow_categories', JSON.stringify(categories));
+    }
+  }, [categories, isLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('moneysmartflow_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    if (isLoaded) {
+      localStorage.setItem('moneysmartflow_transactions', JSON.stringify(transactions));
+    }
+  }, [transactions, isLoaded]);
 
   // Voice & Text transcript handler -> calls Gemini API route
   const handleTranscriptComplete = async (text: string) => {
@@ -119,7 +153,7 @@ export default function Home() {
     }
   };
 
-  // Confirm & Save transaction directly into Supabase transactions table
+  // Confirm & Save transaction with immediate dual-write (LocalStorage + Supabase)
   const handleConfirmTransaction = async (finalData: ParsedVoiceResult) => {
     let txDateIso: string;
     if (finalData.transaction_date && finalData.transaction_date.length === 10) {
@@ -130,7 +164,9 @@ export default function Home() {
       txDateIso = new Date(finalData.transaction_date || Date.now()).toISOString();
     }
 
-    const newTxPayload = {
+    const tempId = `tx-${Date.now()}`;
+    const newTxRecord: Transaction = {
+      id: tempId,
       category_id: finalData.category_id,
       amount: finalData.amount,
       type: finalData.type,
@@ -139,32 +175,47 @@ export default function Home() {
       transaction_date: txDateIso,
     };
 
+    // 1. Optimistic Update: Save to state & LocalStorage immediately!
+    setTransactions((prev) => {
+      const updated = [newTxRecord, ...prev];
+      localStorage.setItem('moneysmartflow_transactions', JSON.stringify(updated));
+      return updated;
+    });
+
+    setIsPreviewOpen(false);
+    setParsedResult(null);
+
+    // 2. Insert directly into Supabase database table
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
           .from('transactions')
-          .insert([newTxPayload])
+          .insert([
+            {
+              category_id: newTxRecord.category_id,
+              amount: newTxRecord.amount,
+              type: newTxRecord.type,
+              description: newTxRecord.description,
+              raw_text: newTxRecord.raw_text,
+              transaction_date: newTxRecord.transaction_date,
+            },
+          ])
           .select();
 
         if (error) {
           console.error('Supabase insert transaction error:', error);
-          const fallbackTx: Transaction = { id: `tx-${Date.now()}`, ...newTxPayload };
-          setTransactions((prev) => [fallbackTx, ...prev]);
         } else if (data && data[0]) {
-          setTransactions((prev) => [data[0], ...prev]);
+          // Replace temp ID with real Supabase database row ID
+          setTransactions((prev) => {
+            const replaced = prev.map((t) => (t.id === tempId ? data[0] : t));
+            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(replaced));
+            return replaced;
+          });
         }
       } catch (err) {
         console.error('Supabase insert exception:', err);
-        const fallbackTx: Transaction = { id: `tx-${Date.now()}`, ...newTxPayload };
-        setTransactions((prev) => [fallbackTx, ...prev]);
       }
-    } else {
-      const fallbackTx: Transaction = { id: `tx-${Date.now()}`, ...newTxPayload };
-      setTransactions((prev) => [fallbackTx, ...prev]);
     }
-
-    setIsPreviewOpen(false);
-    setParsedResult(null);
   };
 
   // Category CRUD Handlers
