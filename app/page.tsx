@@ -281,6 +281,27 @@ export default function Home() {
       } catch (err) {
         console.error('[Supabase Insert Exception]:', err);
       }
+
+      // 3. Auto-Save User Preference Memory rule into category_rules table for AI learning
+      if (finalData.description && finalData.category_name) {
+        const cleanKeyword = finalData.description.toLowerCase().trim();
+        if (cleanKeyword.length >= 2) {
+          try {
+            console.log('[Supabase Saving AI Memory Rule]:', cleanKeyword, '->', finalData.category_name);
+            await supabase.from('category_rules').upsert(
+              {
+                keyword: cleanKeyword,
+                category_id: finalData.category_id,
+                category_name: finalData.category_name,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'keyword' }
+            );
+          } catch (err) {
+            console.warn('[Supabase Category Rule Memory Upsert Warning]:', err);
+          }
+        }
+      }
     }
   };
 

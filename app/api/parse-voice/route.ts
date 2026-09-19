@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 // Rich Vietnamese semantic keyword dictionary with exact word-boundary safety
 const CATEGORY_MAPPING_RULES: { [key: string]: string[] } = {
@@ -92,6 +93,20 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     let rawResult: any = null;
 
+    // Fetch User Preference Memory Rules from Supabase category_rules table
+    let customRules: any[] = [];
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: rulesData } = await supabase.from('category_rules').select('*');
+        if (rulesData && rulesData.length > 0) {
+          customRules = rulesData;
+          console.log('[Supabase User Preference Rules Loaded]:', customRules.length, 'rules');
+        }
+      } catch (err) {
+        console.warn('Could not fetch custom category_rules:', err);
+      }
+    }
+
     // Build category context string from user categories
     const categoryNamesList = categories && categories.length > 0
       ? categories.filter((c: any) => c.parent_id !== null).map((c: any) => c.name)
@@ -173,8 +188,8 @@ Trả về duy nhất dữ liệu JSON với cấu trúc:
       rawResult = mockVietnameseParser(text, todayDateStr);
     }
 
-    // Normalize category mapping against Frontend category list
-    const finalParsedData = normalizeCategoryResult(rawResult, text, categories, todayDateStr);
+    // Normalize category mapping against Frontend category list & User Memory Preferences
+    const finalParsedData = normalizeCategoryResult(rawResult, text, categories, todayDateStr, customRules);
     return NextResponse.json(finalParsedData);
 
   } catch (error: any) {
@@ -187,7 +202,7 @@ Trả về duy nhất dữ liệu JSON với cấu trúc:
 }
 
 // Normalize and map category name & id to exact available categories
-function normalizeCategoryResult(raw: any, rawText: string, categories: any[], todayDateStr: string) {
+function normalizeCategoryResult(raw: any, rawText: string, categories: any[], todayDateStr: string, customRules: any[] = []) {
   const type = raw?.type === 'income' ? 'income' : 'expense';
   const textLower = rawText.toLowerCase();
   const catInputLower = (raw?.category_name || raw?.category_id || '').toLowerCase();
@@ -198,6 +213,28 @@ function normalizeCategoryResult(raw: any, rawText: string, categories: any[], t
     : [];
 
   let matchedCat: any = null;
+
+  // 0. User Preference Memory Rules Match (HIGHEST PRIORITY!)
+  if (customRules && customRules.length > 0) {
+    const textClean = textLower.trim();
+    const matchedRule = customRules.find((rule: any) => {
+      const kw = (rule.keyword || '').toLowerCase().trim();
+      if (!kw) return false;
+      return textClean === kw || containsWordKeyword(textClean, kw);
+    });
+
+    if (matchedRule) {
+      const targetCat = availableCats.find(
+        (c: any) =>
+          c.id === matchedRule.category_id ||
+          c.name.toLowerCase() === matchedRule.category_name.toLowerCase()
+      );
+      if (targetCat) {
+        matchedCat = targetCat;
+        console.log('[AI Memory Preference Match!]:', matchedRule.keyword, '->', matchedCat.name);
+      }
+    }
+  }
 
   // 1. Exact match by category name or category id
   if (catInputLower) {
