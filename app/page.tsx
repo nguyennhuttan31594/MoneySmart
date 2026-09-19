@@ -67,68 +67,65 @@ export default function Home() {
     return `${year}-${month}-${day}`;
   };
 
-  // Load initial data from LocalStorage & Supabase
+  // 1. INSTANT 0ms Cache-First Hydration + PARALLEL Background Revalidation
   useEffect(() => {
-    async function loadData() {
-      // 1. Fetch from Supabase as absolute source of truth
-      if (isSupabaseConfigured && supabase) {
-        try {
-          // Fetch categories
-          const { data: catData, error: catErr } = await supabase.from('categories').select('*');
-          console.log('[Supabase Fetch Categories] Data:', catData, 'Error:', catErr);
-          if (catErr) console.error('[Supabase Fetch Categories Error]', catErr);
-
-          if (catData && catData.length > 0) {
-            setCategories(catData);
-            localStorage.setItem('moneysmartflow_categories', JSON.stringify(catData));
-          } else {
-            console.log('[Supabase Seeding Categories...]');
-            const { error: seedErr } = await supabase.from('categories').upsert(DEFAULT_CATEGORIES);
-            if (seedErr) console.error('[Supabase Seed Categories Error]', seedErr);
-          }
-
-          // Fetch transactions from Supabase Cloud
-          const { data: txData, error: txErr } = await supabase
-            .from('transactions')
-            .select('*')
-            .order('transaction_date', { ascending: false });
-
-          console.log('[Supabase Fetch Transactions] Rows:', txData?.length, 'Data:', txData, 'Error:', txErr);
-          if (txErr) console.error('[Supabase Fetch Transactions Error]', txErr);
-
-          if (!txErr && txData) {
-            setTransactions(txData);
-            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(txData));
-          }
-        } catch (err) {
-          console.error('Supabase load exception:', err);
-        }
-      } else {
-        // Fallback for offline without Supabase
-        try {
-          const rawLocalCats = localStorage.getItem('moneysmartflow_categories');
-          const rawLocalTxs = localStorage.getItem('moneysmartflow_transactions');
-          const rawLocalRules = localStorage.getItem('moneysmartflow_voice_rules');
-          if (rawLocalCats) setCategories(JSON.parse(rawLocalCats));
-          if (rawLocalTxs) setTransactions(JSON.parse(rawLocalTxs));
-          if (rawLocalRules) setVoiceRules(JSON.parse(rawLocalRules));
-        } catch (err) {
-          console.error('LocalStorage read error:', err);
-        }
-      }
-
-      // Also read voice rules from local storage
-      try {
-        const rawLocalRules = localStorage.getItem('moneysmartflow_voice_rules');
-        if (rawLocalRules) setVoiceRules(JSON.parse(rawLocalRules));
-      } catch (err) {
-        console.error(err);
-      }
-
-      setIsLoaded(true);
+    // Step A: Hydrate from LocalStorage INSTANTLY (< 5ms)
+    try {
+      const rawLocalCats = localStorage.getItem('moneysmartflow_categories');
+      const rawLocalTxs = localStorage.getItem('moneysmartflow_transactions');
+      const rawLocalRules = localStorage.getItem('moneysmartflow_voice_rules');
+      if (rawLocalCats) setCategories(JSON.parse(rawLocalCats));
+      if (rawLocalTxs) setTransactions(JSON.parse(rawLocalTxs));
+      if (rawLocalRules) setVoiceRules(JSON.parse(rawLocalRules));
+    } catch (err) {
+      console.error('Instant local cache load error:', err);
     }
 
-    loadData();
+    // App is ready IMMEDIATELY for 0ms user perceived load time!
+    setIsLoaded(true);
+
+    // Step B: Parallel Non-blocking Background Revalidation from Supabase Cloud
+    if (isSupabaseConfigured && supabase) {
+      Promise.all([
+        supabase.from('categories').select('*'),
+        supabase.from('transactions').select('*').order('transaction_date', { ascending: false }),
+        supabase.from('category_rules').select('*'),
+      ])
+        .then(([catRes, txRes, ruleRes]) => {
+          if (!catRes.error && catRes.data && catRes.data.length > 0) {
+            setCategories(catRes.data);
+            localStorage.setItem('moneysmartflow_categories', JSON.stringify(catRes.data));
+          }
+          if (!txRes.error && txRes.data) {
+            setTransactions(txRes.data);
+            localStorage.setItem('moneysmartflow_transactions', JSON.stringify(txRes.data));
+          }
+          if (!ruleRes.error && ruleRes.data && ruleRes.data.length > 0) {
+            const mappedRules: VoiceRule[] = ruleRes.data
+              .map((r: any) => ({
+                id: r.id || `vrule-${Date.now()}`,
+                misspoken_phrase: r.keyword || '',
+                correct_phrase: r.category_name || '',
+                category_id: r.category_id || null,
+              }))
+              .filter((r) => r.misspoken_phrase && r.correct_phrase);
+
+            if (mappedRules.length > 0) {
+              setVoiceRules((prev) => {
+                const combinedMap = new Map<string, VoiceRule>();
+                prev.forEach((r) => combinedMap.set(r.misspoken_phrase.toLowerCase(), r));
+                mappedRules.forEach((r) => combinedMap.set(r.misspoken_phrase.toLowerCase(), r));
+                const updated = Array.from(combinedMap.values());
+                localStorage.setItem('moneysmartflow_voice_rules', JSON.stringify(updated));
+                return updated;
+              });
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Background Supabase revalidation exception:', err);
+        });
+    }
   }, []);
 
   // Sync to LocalStorage Backup ONLY AFTER initial load is done
