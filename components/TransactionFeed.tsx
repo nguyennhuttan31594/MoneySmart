@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Transaction, Category } from '@/lib/types';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { CategoryIcon } from '@/components/CategoryIcon3D';
