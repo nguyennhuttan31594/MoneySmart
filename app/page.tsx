@@ -12,6 +12,7 @@ import { ReportsDashboard } from '@/components/ReportsDashboard';
 import { TransactionFeed } from '@/components/TransactionFeed';
 
 import { Wallet, PieChart, Layers, ListFilter } from 'lucide-react';
+import { CurrencyDollar } from '@phosphor-icons/react';
 
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -329,33 +330,34 @@ export default function Home() {
             gap: 10,
           }}
         >
-          {/* Icon ví: tròn 36px, nền rgba(0,122,255,0.10) */}
+          {/* Icon fancy tờ tiền dollar màu tím nổi bật */}
           <div
             style={{
               width: 36,
               height: 36,
               borderRadius: '50%',
-              background: 'rgba(0, 122, 255, 0.10)',
+              background: 'linear-gradient(135deg, #AF52DE 0%, #5856D6 100%)',
+              boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,0.45), 0 2px 6px rgba(175,82,222,0.30)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <Wallet
-              style={{ width: 18, height: 18, color: '#007AFF' }}
-              strokeWidth={1.8}
+            <CurrencyDollar
+              weight="fill"
+              style={{ width: 20, height: 20, color: '#FFFFFF' }}
               aria-hidden="true"
             />
           </div>
 
-          {/* Tên app: 17px / weight 600 / letter-spacing -0.44px, căn Trái */}
+          {/* Tên app MoneySmartflow nổi bật màu tím */}
           <h1
             style={{
-              fontSize: 17,
-              fontWeight: 600,
+              fontSize: 18,
+              fontWeight: 700,
               letterSpacing: '-0.44px',
-              color: 'var(--label)',
+              color: '#AF52DE',
               lineHeight: '22px',
               whiteSpace: 'nowrap',
               margin: 0,
