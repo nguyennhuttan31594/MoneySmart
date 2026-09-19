@@ -40,43 +40,71 @@ interface TxRowProps {
   isLast: boolean;
   onDelete: (id: string) => void;
   animationDelay: number;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
 }
 
-const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay }) => {
-  const [swipeX, setSwipeX] = useState(0);
+const TxRow: React.FC<TxRowProps> = ({
+  tx,
+  cat,
+  isLast,
+  onDelete,
+  animationDelay,
+  isOpen,
+  onOpen,
+  onClose,
+}) => {
   const [startX, setStartX] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState<number | null>(null);
 
   const isExpense = tx.type === 'expense';
   const amountColor = isExpense ? '#FF3B30' : '#34C759';
   const prefix = isExpense ? '−' : '+';
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartX(e.touches[0].clientX);
+  const currentSwipeX = dragOffset !== null ? dragOffset : (isOpen ? -88 : 0);
+
+  const handleStart = (clientX: number) => {
+    setStartX(clientX);
     setIsDragging(false);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleMove = (clientX: number) => {
     if (startX === null) return;
-    const dx = e.touches[0].clientX - startX;
-    if (dx < -8) setIsDragging(true);
-    if (isDragging) {
-      const clamped = Math.max(-88, Math.min(0, dx));
-      setSwipeX(clamped);
+    const dx = clientX - startX;
+    if (Math.abs(dx) > 6) setIsDragging(true);
+
+    if (isDragging || Math.abs(dx) > 6) {
+      const basePos = isOpen ? -88 : 0;
+      const clamped = Math.max(-88, Math.min(0, basePos + dx));
+      setDragOffset(clamped);
     }
   };
 
-  const handleTouchEnd = () => {
-    if (swipeX < -44) {
-      setSwipeX(-88);
-    } else {
-      setSwipeX(0);
+  const handleEnd = () => {
+    if (startX === null) return;
+    if (dragOffset !== null) {
+      if (dragOffset < -40) {
+        onOpen();
+      } else {
+        onClose();
+      }
     }
     setStartX(null);
     setIsDragging(false);
+    setDragOffset(null);
   };
 
-  const handleDelete = () => {
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (isOpen) {
+      e.stopPropagation();
+      onClose();
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
     vibrate([10, 40, 10]);
     onDelete(tx.id);
   };
@@ -85,8 +113,9 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
 
   return (
     <div
+      data-tx-id={tx.id}
       className="animate-slide-up"
-      style={{ animationDelay: `${animationDelay}ms`, position: 'relative', overflow: 'hidden' }}
+      style={{ position: 'relative', overflow: 'hidden' }}
     >
       {/* Swipe action backdrop — 88px wide delete button */}
       <div
@@ -114,22 +143,30 @@ const TxRow: React.FC<TxRowProps> = ({ tx, cat, isLast, onDelete, animationDelay
             fontWeight: 600,
             border: 'none',
             fontFamily: 'inherit',
+            cursor: 'pointer',
           }}
         >
           Xoá
         </button>
       </div>
 
-      {/* Row content — slides left on swipe */}
+      {/* Row content — slides left/right on drag or swipe */}
       <div
         className="tx-row"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        onClick={handleRowClick}
+        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchEnd={handleEnd}
+        onMouseDown={(e) => handleStart(e.clientX)}
+        onMouseMove={(e) => { if (startX !== null) handleMove(e.clientX); }}
+        onMouseUp={handleEnd}
+        onMouseLeave={() => { if (startX !== null) handleEnd(); }}
         style={{
-          transform: `translateX(${swipeX}px)`,
-          transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.32,0.72,0,1)',
+          transform: `translateX(${currentSwipeX}px)`,
+          transition: isDragging || dragOffset !== null ? 'none' : 'transform 320ms cubic-bezier(0.32,0.72,0,1)',
           background: '#FFFFFF',
+          userSelect: 'none',
+          cursor: isOpen ? 'pointer' : 'default',
         }}
         role="listitem"
       >
@@ -233,6 +270,20 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'expense' | 'income'>('all');
   const [thumbIndex, setThumbIndex] = useState(0);
+  const [openTxId, setOpenTxId] = useState<string | null>(null);
+
+  // Close open row when clicking anywhere outside
+  useEffect(() => {
+    if (!openTxId) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`[data-tx-id="${openTxId}"]`)) {
+        setOpenTxId(null);
+      }
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [openTxId]);
 
   const categoryMap = useMemo(() => {
     const m = new Map<string, Category>();
@@ -298,45 +349,31 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
           marginBottom: 12,
         }}
       >
-        <h2
+        <h1 className="type-large-title" style={{ color: 'var(--label)' }}>
+          Giao Dịch
+        </h1>
+        <span
+          className="type-footnote tabular-num"
           style={{
-            fontSize: 28,
-            fontWeight: 700,
-            letterSpacing: '-0.5px',
-            lineHeight: '34px',
-            color: '#000000',
-            margin: 0,
-          }}
-        >
-          Nhật Ký Giao Dịch
-        </h2>
-        <div
-          style={{
-            height: 24,
-            padding: '0 10px',
+            color: 'var(--label-tertiary)',
+            background: 'var(--fill-quaternary)',
+            padding: '2px 10px',
             borderRadius: 9999,
-            background: 'rgba(116, 116, 128, 0.12)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'rgba(60, 60, 67, 0.60)',
           }}
         >
-          {filteredTransactions.length} giao dịch
-        </div>
+          {filteredTransactions.length} mục
+        </span>
       </div>
 
-      {/* ── Search bar: 36px, radius 9999, background rgba(118,118,128,0.12) ── */}
+      {/* ── Search bar ── */}
       <div
+        className="glass-thin"
         style={{
+          borderRadius: 14,
+          padding: '8px 12px',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          background: 'rgba(118, 118, 128, 0.12)',
-          borderRadius: 9999,
-          padding: '0 14px',
-          height: 36,
           marginBottom: 12,
         }}
       >
@@ -425,6 +462,9 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
                       isLast={idx === group.items.length - 1}
                       onDelete={onDeleteTransaction}
                       animationDelay={idx * 28}
+                      isOpen={openTxId === tx.id}
+                      onOpen={() => setOpenTxId(tx.id)}
+                      onClose={() => setOpenTxId(null)}
                     />
                   );
                 })}
