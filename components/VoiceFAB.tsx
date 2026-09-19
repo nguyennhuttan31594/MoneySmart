@@ -16,8 +16,8 @@ const vibrate = (p: number | number[]) => {
 const cleanVietnameseSTTAnomalies = (rawText: string): string => {
   if (!rawText) return '';
   let text = rawText;
-  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s*(?:100|hóa|hoá)?\s*(?:xanh)/gi, 'Bách Hóa Xanh');
-  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s+(?:hóa|hoá)/gi, 'Bách Hóa');
+  text = text.replace(/(?:100|bách|bắt|bắp|bác|bát|bắc)\s*(?:multiple|multi|multiform|hóa|hoá|100)?\s*(?:xanh)/gi, 'Bách Hóa Xanh');
+  text = text.replace(/(?:100|bách|bắt|bắp|bác|bát|bắc)\s+(?:multiple|multi|multiform|hóa|hoá)/gi, 'Bách Hóa');
   text = text.replace(/^100\s+100\s+100$/gi, 'Bách Hóa Xanh');
   text = text.replace(/bách\s+hoá\s+xanh/gi, 'Bách Hóa Xanh');
   text = text.replace(/thế\s+di\s+động/gi, 'Thế Giới Di Động');

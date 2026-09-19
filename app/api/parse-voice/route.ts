@@ -7,9 +7,9 @@ function cleanVietnameseSTTAnomalies(rawText: string): string {
   if (!rawText) return '';
   let text = rawText;
 
-  // 1. Chrome STT anomaly: "Bách Hóa Xanh" phonetics ("100 hóa xanh", "100 hoá xanh", "bắt 100 xanh", "bắp hóa xanh", "bát hóa xanh", "100 100 100")
-  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s*(?:100|hóa|hoá)?\s*(?:xanh)/gi, 'Bách Hóa Xanh');
-  text = text.replace(/(?:100|bắt|bắp|bác|bát|bắc)\s+(?:hóa|hoá)/gi, 'Bách Hóa');
+  // 1. Chrome STT anomaly: "Bách Hóa Xanh" phonetics ("100 multiple xanh", "100 multi xanh", "100 hóa xanh", "100 hoá xanh", "bắt 100 xanh", "bắp hóa xanh", "100 100 100")
+  text = text.replace(/(?:100|bách|bắt|bắp|bác|bát|bắc)\s*(?:multiple|multi|multiform|hóa|hoá|100)?\s*(?:xanh)/gi, 'Bách Hóa Xanh');
+  text = text.replace(/(?:100|bách|bắt|bắp|bác|bát|bắc)\s+(?:multiple|multi|multiform|hóa|hoá)/gi, 'Bách Hóa');
   text = text.replace(/^100\s+100\s+100$/gi, 'Bách Hóa Xanh');
   text = text.replace(/bách\s+hoá\s+xanh/gi, 'Bách Hóa Xanh');
 
