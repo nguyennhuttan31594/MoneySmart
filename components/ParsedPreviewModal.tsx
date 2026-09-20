@@ -195,13 +195,13 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                   onClick={() => {
                     const def = categories.find((c) => c.type === type && c.parent_id);
                     setFormData({
-                      ...formData,
+                      ...currentData,
                       type,
-                      category_id: def?.id || formData.category_id,
-                      category_name: def?.name || formData.category_name,
+                      category_id: def?.id || currentData.category_id,
+                      category_name: def?.name || currentData.category_name,
                     });
                   }}
-                  aria-pressed={formData.type === type}
+                  aria-pressed={currentData.type === type}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -214,7 +214,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                     fontWeight: 600,
                     letterSpacing: '-0.23px',
                     transition: 'all 280ms cubic-bezier(0.25,1.5,0.5,1)',
-                    ...(formData.type === type
+                    ...(currentData.type === type
                       ? { background: 'var(--bg-elevated)', color, boxShadow: '0 3px 8px rgba(0,0,0,0.10)' }
                       : { color: 'var(--label-secondary)' }),
                   }}
@@ -234,10 +234,10 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
               <input
                 type="text"
                 inputMode="numeric"
-                value={formData.amount ? new Intl.NumberFormat('vi-VN').format(formData.amount) : ''}
+                value={currentData.amount ? new Intl.NumberFormat('vi-VN').format(currentData.amount) : ''}
                 onChange={(e) => {
                   const digits = e.target.value.replace(/\D/g, '');
-                  setFormData({ ...formData, amount: digits ? Number(digits) : 0 });
+                  setFormData({ ...currentData, amount: digits ? Number(digits) : 0 });
                 }}
                 placeholder="0"
                 required
@@ -247,7 +247,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                   fontSize: 28,
                   fontWeight: 700,
                   letterSpacing: '-0.5px',
-                  color: formData.type === 'expense' ? 'var(--red)' : 'var(--green)',
+                  color: currentData.type === 'expense' ? 'var(--red)' : 'var(--green)',
                   fontVariantNumeric: 'tabular-nums',
                   padding: '12px 16px',
                 }}
@@ -256,7 +256,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 className="type-footnote tabular-num"
                 style={{ color: 'var(--label-tertiary)', marginTop: 4 }}
               >
-                {formatVND(formData.amount)}
+                {formatVND(currentData.amount)}
               </p>
             </div>
 
@@ -268,8 +268,8 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
               </label>
               <input
                 type="text"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                value={currentData.description}
+                onChange={(e) => setFormData({ ...currentData, description: e.target.value })}
                 placeholder="VD: Đi ăn cơm tấm, Tiền điện..."
                 required
                 aria-label="Mô tả giao dịch"
@@ -285,13 +285,13 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                   Danh mục
                 </label>
                 <select
-                  value={formData.category_id}
+                  value={currentData.category_id}
                   onChange={(e) => {
                     const cat = categories.find((c) => c.id === e.target.value);
                     setFormData({
-                      ...formData,
+                      ...currentData,
                       category_id: e.target.value,
-                      category_name: cat?.name || formData.category_name,
+                      category_name: cat?.name || currentData.category_name,
                     });
                   }}
                   aria-label="Chọn danh mục"
@@ -310,8 +310,8 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 </label>
                 <input
                   type="date"
-                  value={formData.transaction_date}
-                  onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                  value={currentData.transaction_date}
+                  onChange={(e) => setFormData({ ...currentData, transaction_date: e.target.value })}
                   required
                   aria-label="Ngày giao dịch"
                   style={inputStyle}
