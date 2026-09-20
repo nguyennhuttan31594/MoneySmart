@@ -132,45 +132,22 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     let rawResult: any = null;
 
-    // Fetch categories & User Preference Memory Rules from Supabase
-    let customRules: any[] = [];
-    let activeCategories: any[] = categories || [];
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: rulesData } = await supabase.from('category_rules').select('*');
-        if (rulesData && rulesData.length > 0) {
-          customRules = rulesData;
-          console.log('[Supabase User Preference Rules Loaded]:', customRules.length, 'rules');
-        }
-      } catch (err) {
-        console.warn('Could not fetch custom category_rules:', err);
-      }
-
-      if (activeCategories.length === 0) {
-        try {
-          const { data: dbCats } = await supabase.from('categories').select('*');
-          if (dbCats && dbCats.length > 0) {
-            activeCategories = dbCats;
-          }
-        } catch (err) {
-          console.warn('Could not fetch categories from Supabase:', err);
-        }
-      }
-    }
+    // Use categories & Voice Rules passed directly from client (0ms DB delay!)
+    const activeCategories: any[] = categories || [];
+    const customRules: any[] = voiceRules || [];
 
     // Build category context string from user categories
     const categoryNamesList = activeCategories.length > 0
       ? activeCategories.filter((c: any) => c.parent_id !== null).map((c: any) => c.name)
       : ['Ăn uống', 'Di chuyển', 'Hóa đơn & Điện nước', 'Mua sắm', 'Sức khỏe & Y tế', 'Giải trí', 'Con cái', 'Thu nhập'];
 
-    // Call Gemini AI if key is configured
+    // Call Gemini AI if key is configured (using official ultra-fast gemini-1.5-flash model)
     if (apiKey) {
       try {
-        console.log('Gemini API Key detected. Calling Gemini API gemini-3.6-flash...');
+        console.log('Gemini API Key detected. Calling Gemini API gemini-1.5-flash...');
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-          model: 'gemini-3.6-flash',
+          model: 'gemini-1.5-flash',
           generationConfig: {
             responseMimeType: 'application/json',
           },

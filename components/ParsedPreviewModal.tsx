@@ -26,35 +26,42 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
   const [formData, setFormData] = useState<ParsedVoiceResult | null>(null);
   const grabberRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (parsedData) {
-      const typeCats = categories.filter((c) => c.type === parsedData.type && c.parent_id !== null);
-      let matchedCat = typeCats.find(
-        (c) =>
-          c.id === parsedData.category_id ||
-          c.name.toLowerCase() === (parsedData.category_name || '').toLowerCase()
-      );
-      if (!matchedCat && typeCats.length > 0) matchedCat = typeCats[0];
+  const activeData = React.useMemo(() => {
+    if (!parsedData) return null;
+    const typeCats = categories.filter((c) => c.type === parsedData.type && c.parent_id !== null);
+    let matchedCat = typeCats.find(
+      (c) =>
+        c.id === parsedData.category_id ||
+        c.name.toLowerCase() === (parsedData.category_name || '').toLowerCase()
+    );
+    if (!matchedCat && typeCats.length > 0) matchedCat = typeCats[0];
 
-      const now = new Date();
-      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const targetDate =
-        parsedData.transaction_date && parsedData.transaction_date.length >= 10
-          ? parsedData.transaction_date.substring(0, 10)
-          : localToday;
+    const now = new Date();
+    const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const targetDate =
+      parsedData.transaction_date && parsedData.transaction_date.length >= 10
+        ? parsedData.transaction_date.substring(0, 10)
+        : localToday;
 
-      setFormData({
-        ...parsedData,
-        category_id: matchedCat ? matchedCat.id : parsedData.category_id,
-        category_name: matchedCat ? matchedCat.name : parsedData.category_name,
-        transaction_date: targetDate,
-      });
-    }
+    return {
+      ...parsedData,
+      category_id: matchedCat ? matchedCat.id : parsedData.category_id,
+      category_name: matchedCat ? matchedCat.name : parsedData.category_name,
+      transaction_date: targetDate,
+    };
   }, [parsedData, categories]);
 
-  if (!isOpen || !formData) return null;
+  useEffect(() => {
+    if (activeData) {
+      setFormData(activeData);
+    }
+  }, [activeData]);
 
-  const filteredCats = categories.filter((c) => c.type === formData.type && c.parent_id !== null);
+  const currentData = formData || activeData;
+
+  if (!isOpen || !currentData) return null;
+
+  const filteredCats = categories.filter((c) => c.type === currentData.type && c.parent_id !== null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
