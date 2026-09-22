@@ -407,7 +407,42 @@ export default function Home() {
       const { error } = await supabase.from('transactions').delete().eq('id', id);
       if (error) console.error('[Supabase Delete Transaction Error]:', error);
     }
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    setTransactions((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      localStorage.setItem('moneysmartflow_transactions', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleUpdateTransaction = async (updatedTx: Transaction) => {
+    // 1. Optimistic Update
+    setTransactions((prev) => {
+      const updated = prev.map((t) => (t.id === updatedTx.id ? updatedTx : t)).sort(
+        (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+      );
+      localStorage.setItem('moneysmartflow_transactions', JSON.stringify(updated));
+      return updated;
+    });
+
+    // 2. Supabase Cloud update
+    if (isSupabaseConfigured && supabase) {
+      console.log('[Supabase Update Transaction Payload]:', updatedTx);
+      const { error } = await supabase
+        .from('transactions')
+        .update({
+          category_id: updatedTx.category_id,
+          amount: updatedTx.amount,
+          type: updatedTx.type,
+          description: updatedTx.description,
+          transaction_date: updatedTx.transaction_date,
+        })
+        .eq('id', updatedTx.id);
+
+      if (error) {
+        console.error('[Supabase Update Transaction Error]:', error);
+        alert('Lỗi cập nhật Supabase: ' + error.message);
+      }
+    }
   };
 
   /* ─── nav tab config ─── */
@@ -537,6 +572,7 @@ export default function Home() {
             transactions={transactions}
             categories={categories}
             onDeleteTransaction={handleDeleteTransaction}
+            onUpdateTransaction={handleUpdateTransaction}
           />
         )}
         {activeTab === 'reports' && (

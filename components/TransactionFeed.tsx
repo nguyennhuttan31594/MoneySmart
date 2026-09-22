@@ -4,11 +4,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Transaction, Category } from '@/lib/types';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { CategoryIcon } from '@/components/CategoryIcon3D';
+import { EditTransactionModal } from '@/components/EditTransactionModal';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
   categories: Category[];
   onDeleteTransaction: (id: string) => void;
+  onUpdateTransaction: (updatedTx: Transaction) => void;
 }
 
 /* ── Format helpers ────────────────────────────────────────────── */
@@ -39,6 +41,7 @@ interface TxRowProps {
   cat?: Category;
   isLast: boolean;
   onDelete: (id: string) => void;
+  onEdit: (tx: Transaction) => void;
   animationDelay: number;
   isOpen: boolean;
   onOpen: () => void;
@@ -50,6 +53,7 @@ const TxRow: React.FC<TxRowProps> = ({
   cat,
   isLast,
   onDelete,
+  onEdit,
   animationDelay,
   isOpen,
   onOpen,
@@ -101,9 +105,6 @@ const TxRow: React.FC<TxRowProps> = ({
       } else {
         onClose();
       }
-    } else if (isOpen) {
-      // User tapped on the open row without dragging -> CLOSE IT!
-      onClose();
     }
     setStartX(null);
     setStartY(null);
@@ -116,13 +117,17 @@ const TxRow: React.FC<TxRowProps> = ({
       e.preventDefault();
       e.stopPropagation();
       onClose();
+    } else if (!isDragging && dragOffset === null) {
+      vibrate(8);
+      onEdit(tx);
     }
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    vibrate([10, 40, 10]);
-    onDelete(tx.id);
+    vibrate(8);
+    onClose();
+    onEdit(tx);
   };
 
   const handleCancelSwipe = (e: React.MouseEvent) => {
@@ -139,7 +144,7 @@ const TxRow: React.FC<TxRowProps> = ({
       className="animate-slide-up"
       style={{ position: 'relative', overflow: 'hidden' }}
     >
-      {/* Swipe action backdrop — 120px wide backdrop with Xóa + Hủy buttons */}
+      {/* Swipe action backdrop — 120px wide backdrop with Sửa + Hủy buttons */}
       <div
         style={{
           position: 'absolute',
@@ -154,7 +159,7 @@ const TxRow: React.FC<TxRowProps> = ({
       >
         <button
           onClick={handleCancelSwipe}
-          aria-label="Hủy xóa"
+          aria-label="Hủy thao tác"
           style={{
             background: '#8E8E93',
             color: '#fff',
@@ -173,10 +178,10 @@ const TxRow: React.FC<TxRowProps> = ({
           Hủy
         </button>
         <button
-          onClick={handleDelete}
-          aria-label="Xóa giao dịch"
+          onClick={handleEditClick}
+          aria-label="Chỉnh sửa giao dịch"
           style={{
-            background: '#FF3B30',
+            background: '#007AFF',
             color: '#fff',
             borderRadius: 0,
             flex: 1,
@@ -190,13 +195,13 @@ const TxRow: React.FC<TxRowProps> = ({
             justifyContent: 'center',
           }}
         >
-          Xoá
+          Sửa
         </button>
       </div>
 
       {/* Row content — slides left/right on drag or swipe */}
       <div
-        className="tx-row"
+        className="tx-row press-scale"
         onClick={handleRowClick}
         onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
@@ -212,7 +217,7 @@ const TxRow: React.FC<TxRowProps> = ({
           position: 'relative',
           zIndex: 2,
           userSelect: 'none',
-          cursor: isOpen ? 'pointer' : 'default',
+          cursor: 'pointer',
         }}
         role="listitem"
       >
@@ -313,11 +318,13 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   transactions,
   categories,
   onDeleteTransaction,
+  onUpdateTransaction,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'expense' | 'income'>('all');
   const [thumbIndex, setThumbIndex] = useState(0);
   const [openTxId, setOpenTxId] = useState<string | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   // Close open row when clicking anywhere outside
   useEffect(() => {
@@ -514,6 +521,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
                       cat={cat}
                       isLast={idx === group.items.length - 1}
                       onDelete={onDeleteTransaction}
+                      onEdit={(targetTx) => setEditingTx(targetTx)}
                       animationDelay={idx * 28}
                       isOpen={openTxId === tx.id}
                       onOpen={() => setOpenTxId(tx.id)}
@@ -548,6 +556,16 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      <EditTransactionModal
+        isOpen={Boolean(editingTx)}
+        transaction={editingTx}
+        categories={categories}
+        onSave={onUpdateTransaction}
+        onDelete={onDeleteTransaction}
+        onClose={() => setEditingTx(null)}
+      />
     </div>
   );
 };
