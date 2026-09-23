@@ -358,20 +358,38 @@ export default function Home() {
     const catId = `cat-${Date.now()}`;
     const createdCat: Category = { ...newCat, id: catId };
 
+    // 1. Optimistic Update: Save to state & LocalStorage immediately!
+    setCategories((prev) => {
+      const updated = [...prev, createdCat];
+      localStorage.setItem('moneysmartflow_categories', JSON.stringify(updated));
+      return updated;
+    });
+
+    // 2. Insert into Supabase with explicit ID
     if (isSupabaseConfigured && supabase) {
-      console.log('[Supabase Add Category Payload]:', newCat);
-      const { data, error } = await supabase.from('categories').insert([newCat]).select();
+      console.log('[Supabase Add Category Payload]:', createdCat);
+      const { data, error } = await supabase.from('categories').insert([createdCat]).select();
       console.log('[Supabase Add Category Response] Data:', data, 'Error:', error);
-      if (error) console.error('[Supabase Add Category Error]:', error);
-      if (data && data[0]) {
-        setCategories((prev) => [...prev, data[0]]);
-        return;
+      if (error) {
+        console.error('[Supabase Add Category Error]:', error);
+      } else if (data && data[0]) {
+        // Replace temp createdCat with DB response if needed
+        setCategories((prev) => {
+          const updated = prev.map((c) => (c.id === catId ? data[0] : c));
+          localStorage.setItem('moneysmartflow_categories', JSON.stringify(updated));
+          return updated;
+        });
       }
     }
-    setCategories((prev) => [...prev, createdCat]);
   };
 
   const handleUpdateCategory = async (updatedCat: Category) => {
+    setCategories((prev) => {
+      const updated = prev.map((c) => (c.id === updatedCat.id ? updatedCat : c));
+      localStorage.setItem('moneysmartflow_categories', JSON.stringify(updated));
+      return updated;
+    });
+
     if (isSupabaseConfigured && supabase) {
       console.log('[Supabase Update Category Payload]:', updatedCat);
       const { data, error } = await supabase.from('categories').update({
@@ -385,20 +403,20 @@ export default function Home() {
         console.log('[Supabase Update Category Success]:', data[0]);
       }
     }
-    setCategories((prev) => {
-      const updated = prev.map((c) => (c.id === updatedCat.id ? updatedCat : c));
-      localStorage.setItem('moneysmartflow_categories', JSON.stringify(updated));
-      return updated;
-    });
   };
 
   const handleDeleteCategory = async (id: string) => {
+    setCategories((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      localStorage.setItem('moneysmartflow_categories', JSON.stringify(updated));
+      return updated;
+    });
+
     if (isSupabaseConfigured && supabase) {
       console.log('[Supabase Delete Category ID]:', id);
       const { error } = await supabase.from('categories').delete().eq('id', id);
       if (error) console.error('[Supabase Delete Category Error]:', error);
     }
-    setCategories((prev) => prev.filter((c) => c.id !== id));
   };
 
   const handleDeleteTransaction = async (id: string) => {

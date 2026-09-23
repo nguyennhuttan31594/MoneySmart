@@ -56,15 +56,19 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
     e.preventDefault();
     if (!name.trim()) return;
     vibrate(15);
+    const targetParentId = parentId !== null && parentId !== '' ? parentId : (parentCategories[0]?.id || null);
     onAddCategory({
       name: name.trim(),
       type: activeTab,
-      parent_id: parentId || (parentCategories[0]?.id || null),
+      parent_id: targetParentId,
       icon: 'Tag',
-      color,
+      color: '#007AFF',
       budget_limit: budgetLimit ? Number(budgetLimit) : null,
     });
-    setName(''); setBudgetLimit(''); setIsAdding(false);
+    setName('');
+    setBudgetLimit('');
+    setParentId(null);
+    setIsAdding(false);
   };
 
   const startEdit = (cat: Category) => {
@@ -250,13 +254,16 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                   Thuộc nhóm mẹ
                 </label>
                 <select
-                  value={parentId || parentCategories[0]?.id || ''}
+                  value={parentId !== null ? parentId : (parentCategories[0]?.id || '')}
                   onChange={(e) => setParentId(e.target.value)}
                   style={inputStyle}
                 >
                   {parentCategories.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
                   ))}
+                  <option value="">-- Là danh mục mẹ chính --</option>
                 </select>
               </div>
             )}
